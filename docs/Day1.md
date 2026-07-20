@@ -253,11 +253,11 @@ pnpm format    # Prettier로 전체 파일 정리
 ```
 
 ### ✅ 세션 1 체크
-- [ ] `pnpm init`으로 `package.json` 생성, `"type": "module"` 추가
-- [ ] `node 01-hello.js` 실행 성공
-- [ ] ESLint/Prettier/config-prettier/globals 설치됨 (`devDependencies` 확인)
-- [ ] `eslint.config.js`, `.prettierrc`, `.vscode/settings.json` 생성
-- [ ] **저장하면 코드가 자동으로 정리됨** ← 가장 중요
+- [x] `pnpm init`으로 `package.json` 생성, `"type": "module"` 추가
+- [x] `node 01-hello.js` 실행 성공
+- [x] ESLint/Prettier/config-prettier/globals 설치됨 (`devDependencies` 확인)
+- [x] `eslint.config.js`, `.prettierrc`, `.vscode/settings.json` 생성
+- [x] **저장하면 코드가 자동으로 정리됨** ← 가장 중요
 
 ---
 
@@ -316,13 +316,13 @@ console.log(2 ** 10); // 1024  (거듭제곱, 파이썬과 동일)
 파이썬은 `None` 하나지만, JS는 **비어있음을 나타내는 값이 둘**입니다.
 
 ```js
-let a; // 선언만 하고 값 없음 → undefined ("아직 값 안 넣음")
-let b = null; // 명시적으로 "비었다"고 지정 → null
+let un; // 선언만 하고 값 없음 → undefined ("아직 값 안 넣음")
+let nu = null; // 명시적으로 "비었다"고 지정 → null
 
-console.log(a); // undefined
-console.log(b); // null
-console.log(typeof a); // "undefined"
-console.log(typeof b); // "object"   ⚠️ 유명한 역사적 버그(고쳐지지 못함)
+console.log(un); // undefined
+console.log(nu); // null
+console.log(typeof un); // "undefined"
+console.log(typeof nu); // "object"   ⚠️ 유명한 역사적 버그(고쳐지지 못함)
 ```
 
 💡 **실전 규칙**:
@@ -381,16 +381,16 @@ if ({}) console.log("빈 객체도 truthy!"); // ✅ 출력됨
 
 // 🐍 파이썬: if []: 와 if {}: 는 False (빈 컨테이너는 falsy)
 // JS에서 "비었나?"를 확인하려면:
-const arr = [];
-if (arr.length === 0) console.log("배열이 비었음"); // 이렇게 명시적으로
+const emptyArr = [];
+if (emptyArr.length === 0) console.log("배열이 비었음"); // 이렇게 명시적으로
 ```
 
 ### ✅ 세션 2 체크
-- [ ] `const` 기본, `let`은 바뀔 때만
-- [ ] `number`는 int/float 구분 없음을 이해
-- [ ] `null`과 `undefined`의 차이를 말로 설명 가능
-- [ ] 템플릿 리터럴(백틱)로 문자열 조립
-- [ ] `===`만 쓰기, "빈 배열은 truthy" 함정 인지
+- [x] `const` 기본, `let`은 바뀔 때만
+- [x] `number`는 int/float 구분 없음을 이해
+- [x] `null`과 `undefined`의 차이를 말로 설명 가능
+- [x] 템플릿 리터럴(백틱)로 문자열 조립
+- [x] `===`만 쓰기, "빈 배열은 truthy" 함정 인지
 
 ---
 
