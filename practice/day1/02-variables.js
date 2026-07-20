@@ -9,7 +9,6 @@ arr.push(3);
 console.log(arr);
 // arr = [9] 와 같이 재할당은 안됨
 
-
 // 원시 타입 7종
 const s = "hello";
 const n = 42;
@@ -22,10 +21,10 @@ const sym = Symbol("id"); // symbol (거의 안 씀)
 console.log(typeof s, typeof n, typeof b);
 // 파이썬은 int, float이 구분되어 있으나 js의 number는 하나
 
-console.log(10/3);
-console.log(Math.floor(10/3));
-console.log(10%3);
-console.log(2**10);
+console.log(10 / 3);
+console.log(Math.floor(10 / 3));
+console.log(10 % 3);
+console.log(2 ** 10);
 
 // null vs undefined: 파이썬은 None 하나지만 js는 비어있음을 나타내는 값이 두개임
 let un; // 선언만 하고 값을 안넣음, undefined
@@ -74,5 +73,3 @@ if ({}) console.log("빈 객체도 truthy!"); // ✅ 출력됨
 // JS에서 "비었나?"를 확인하려면:
 const emptyArr = [];
 if (emptyArr.length === 0) console.log("배열이 비었음"); // 이렇게 명시적으로
-
-

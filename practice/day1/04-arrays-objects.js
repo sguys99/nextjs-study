@@ -19,7 +19,6 @@ console.log(nums.find((n) => n > 3)); // 4
 console.log(nums.some((n) => n > 4)); // true
 console.log(nums.every((n) => n > 0)); // true
 
-
 // forEach: 순회, 반환값 없음, 파이썬 for 루프
 nums.forEach((n) => console.log(n));
 
@@ -27,7 +26,7 @@ nums.forEach((n) => console.log(n));
 
 // 🐍 파이썬: [n*n for n in nums if n % 2 === 0]  → 짝수만 제곱
 // 🟨 JS:
-const result = nums.filter((n) => n %2 === 0).map((n) => n*n);
+const result = nums.filter((n) => n % 2 === 0).map((n) => n * n);
 console.log(result); // [4, 16]
 // 처음엔 컴프리헨션보다 장황해 보이지만, 체이닝은 읽는 순서 = 실행 순서라 복잡해질수록 오히려 명확합니다. filter → map → reduce를 물 흐르듯 이어보세요.
 
@@ -35,14 +34,14 @@ console.log(result); // [4, 16]
 // 4-2. 객체 리터럴 & 구조 분해 할당
 // JS의 객체({})는 파이썬의 딕셔너리에 가깝습니다(단, 키가 문자열이고 점 표기법 .으로 접근).
 
-const user = {name: "Kim", age: 30, city: "Seoul"};
+const user = { name: "Kim", age: 30, city: "Seoul" };
 
 // 접근은 점으로
 console.log(user.name);
-console.log(user["age"]) // 대괄호도 가능
+console.log(user["age"]); // 대괄호도 가능
 
 // 구조 분해 할당: 매우 자주 활용
-const {name, age} = user;
+const { name, age } = user;
 console.log(name, age);
 
 // 이름 바꾸기 + 기본값
@@ -68,4 +67,3 @@ console.log(updated); // { name: "Kim", age: 31, city: "Seoul" }
 const a = [1, 2];
 const b = [3, 4];
 console.log([...a, ...b]); // [1, 2, 3, 4]
-

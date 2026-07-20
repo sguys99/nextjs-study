@@ -16,6 +16,10 @@ export default [
     },
     rules: {
       "no-unused-vars": "warn", // 안 쓴 변수는 경고 (학습 중엔 error 대신 warn이 편함)
+      // 학습 예제에서 상수 조건/비교(truthy-falsy, == vs ===)를 일부러 쓰므로 warn으로 완화
+      "no-constant-condition": "warn",
+      "no-constant-binary-expression": "warn",
+      "no-unassigned-vars": "warn",
     },
   },
 ];
