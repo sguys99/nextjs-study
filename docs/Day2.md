@@ -662,11 +662,11 @@ node 02-async-basics.js
 💡 `await sleep(1100)`이 절과 절 사이에 있는 이유: 이게 없으면 세 절의 타이머가 뒤섞여서 출력이 엉킵니다. 실습 편의를 위한 구분선이지, 실무 패턴은 아니에요.
 
 ### ✅ 세션 2 체크
-- [ ] JS는 "항상 싱글 스레드 + 이벤트 루프 1개"임을 이해
-- [ ] `setTimeout`이 논블로킹(예약 후 통과)임을 확인
-- [ ] `sleep = (ms) => new Promise(...)` 패턴 작성
-- [ ] async 함수의 반환값이 Promise라 `await`가 필요함을 이해
-- [ ] `async/await` 코드가 🐍 asyncio와 거의 같음을 체감
+- [x] JS는 "항상 싱글 스레드 + 이벤트 루프 1개"임을 이해
+- [x] `setTimeout`이 논블로킹(예약 후 통과)임을 확인
+- [x] `sleep = (ms) => new Promise(...)` 패턴 작성
+- [x] async 함수의 반환값이 Promise라 `await`가 필요함을 이해
+- [x] `async/await` 코드가 🐍 asyncio와 거의 같음을 체감
 
 ---
 
