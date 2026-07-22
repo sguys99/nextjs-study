@@ -798,11 +798,11 @@ try {
 💡 처음엔 "이런 게 있다"만 알면 됩니다. 실제로는 Day 6에서 SDK가 대신 처리해 줍니다.
 
 ### ✅ 세션 3 체크
-- [ ] `fetch` → `await res.json()` 두 단계 `await` 이해
-- [ ] `res.ok`로 HTTP 에러를 **직접** 확인 (fetch는 404에 안 던짐)
-- [ ] `try/catch/finally`로 에러 처리
-- [ ] `Promise.all`로 병렬 호출 성공
-- [ ] `Promise.all`(전부 성공)과 `allSettled`(부분 허용) 차이 인지
+- [x] `fetch` → `await res.json()` 두 단계 `await` 이해
+- [x] `res.ok`로 HTTP 에러를 **직접** 확인 (fetch는 404에 안 던짐)
+- [x] `try/catch/finally`로 에러 처리
+- [x] `Promise.all`로 병렬 호출 성공
+- [x] `Promise.all`(전부 성공)과 `allSettled`(부분 허용) 차이 인지
 
 ---
 
@@ -932,11 +932,11 @@ console.log(format(now, "yyyy-MM-dd HH:mm")); // 예: 2026-07-20 14:30
 💡 **경로의 차이를 보세요**: 내 파일은 `"./math.js"`(상대경로, 확장자 O), 설치한 패키지는 `"date-fns"`(이름만, 확장자 X). 🐍 파이썬에서 내 모듈 `from .utils import x` vs 설치 패키지 `from requests import get`의 구분과 같은 감각입니다.
 
 ### ✅ 세션 4 체크
-- [ ] `export`(named/default)와 `import`로 파일 분리
-- [ ] 상대경로 import에 **확장자 `.js`** 붙이기
-- [ ] `import * as`와 `as` 별칭 사용
-- [ ] `pnpm add`로 외부 패키지 설치 후 import해서 사용
-- [ ] ESM(`import`)과 CommonJS(`require`)를 구분해서 인지
+- [x] `export`(named/default)와 `import`로 파일 분리
+- [x] 상대경로 import에 **확장자 `.js`** 붙이기
+- [x] `import * as`와 `as` 별칭 사용
+- [x] `pnpm add`로 외부 패키지 설치 후 import해서 사용
+- [x] ESM(`import`)과 CommonJS(`require`)를 구분해서 인지
 
 ---
 
