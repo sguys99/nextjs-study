@@ -336,6 +336,8 @@ obj.workingMethod();
 
 > 새 파일 `02-async-basics.js`. **당신에게 가장 익숙하면서도 함정이 있는 세션**입니다. 개념(비동기·이벤트 루프)은 알고 있으니, JS만의 동작과 문법 배선에 집중하세요.
 
+📌 **코드 블록 읽는 법** — 2-1~2-7의 코드는 전부 **개념 설명용 조각**입니다(🐍 표시된 파이썬 블록은 대조용이라 칠 필요 없음). **실제로 `02-async-basics.js`에 쳐서 돌릴 코드는 [2-8의 최종본](#2-8-02-async-basicsjs-최종본--실제로-칠-코드) 하나**뿐이에요. 조각들을 이어붙이려 하지 말고, 먼저 쭉 읽은 뒤 2-8을 한 번에 치세요.
+
 ### 2-1. 왜 비동기인가 (30초 복습)
 
 파일 읽기·네트워크 요청 같은 I/O는 시간이 걸립니다. 그 시간 동안 프로그램이 **멈춰서 기다리면(blocking)** 아무 일도 못 합니다. 비동기는 "요청만 걸어두고, 결과가 올 때까지 다른 일을 하다가, 도착하면 이어서 처리"하는 방식입니다. 🐍 `asyncio`로 이미 아는 그 개념 그대로입니다.
@@ -356,6 +358,8 @@ obj.workingMethod();
 
 `setTimeout(콜백, 밀리초)`는 "지정 시간 뒤에 콜백을 실행 큐에 넣어줘"입니다.
 
+💡 **콜백 다시 확인** (1-3 ①): 콜백은 **인자로 넘겨져서 나중에 남이 대신 호출하는 함수**입니다. 구분은 **괄호 하나**뿐이에요 — `f()`는 "지금 실행한 결과(값)", `f`는 "함수 자체". 🐍 `print(len("abc"))` vs `cb = len` 의 그 구분입니다. `sorted(xs, key=len)`의 `key=len`도 파이썬 쪽 콜백이고요. 여기서부터 나오는 `setTimeout`·`.then`·`resolve` 인자가 전부 콜백입니다.
+
 ```js
 console.log("1. 시작");
 setTimeout(() => console.log("2. 1초 뒤"), 1000);
@@ -373,6 +377,37 @@ console.log("3. 끝");
 
 Promise는 "지금은 없지만 나중에 성공(resolve) 또는 실패(reject)할 값"을 담는 객체입니다. 🐍 파이썬의 Future/코루틴이 `await` 가능한 것과 같은 자리입니다.
 
+#### ① 용어 정리 — Future · 코루틴 · await
+
+셋을 뭉뚱그리기 쉬운데, 역할이 각각 다릅니다.
+
+| 🐍 Python | 뜻 | 🟨 JS 대응 |
+|---|---|---|
+| **코루틴** | `async def f()`를 **호출하면 나오는 객체**. 아직 안 돎 — "실행 계획서" | async 함수 호출 결과 = **Promise** |
+| **Future** | "나중에 값이 채워질 **빈 상자**" | **Promise** |
+| **await** | 상자가 채워질 때까지 **내 함수만 멈추고** 제어권을 이벤트 루프에 반납, 채워지면 이어서 실행 | **await** (동일) |
+
+**`await`가 하는 일은 두 가지**입니다 — 분리해서 기억하세요.
+1. **대기**: 그동안 이벤트 루프는 다른 일을 함 (`time.sleep`처럼 전체를 멈추는 게 아님)
+2. **포장 벗기기**: `Promise<42>` → `42`
+
+⚠️ **파이썬과의 진짜 차이 — 게으르냐 부지런하냐**: 파이썬 코루틴은 **게으릅니다**(`await` 하기 전엔 한 줄도 안 돎). JS Promise는 **부지런합니다**(만드는 순간 이미 작업 시작, `await`는 결과만 받음).
+
+```js
+const p = fetch(url); // ← 여기서 이미 요청이 나감
+console.log("다른 일"); // 요청이 날아가는 동안 실행됨
+const res = await p; // 결과만 받음
+```
+
+```python
+# 🐍 여기선 아무 요청도 안 나감 — await 해야 비로소 시작
+coro = fetch(url)
+```
+
+💡 세션 3의 `Promise.all`이 병렬이 되는 이유가 이겁니다. 배열에 담긴 시점에 이미 다 출발했거든요.
+
+#### ② Promise 직접 만들기 — `new`부터
+
 ```js
 // Promise 직접 만들기 (보통은 라이브러리가 만들어 주지만, 이해를 위해)
 const promise = new Promise((resolve, reject) => {
@@ -388,12 +423,81 @@ promise
   .catch((err) => console.log("실패:", err.message));
 ```
 
+**`new` = 파이썬의 클래스 인스턴스 생성.** 새 문법이 아니라 `__init__`을 부르는 것뿐입니다.
+
+```python
+# 🐍 Python — 클래스를 그냥 호출
+e = Exception("실패")
+d = datetime.now()
+```
+
+```js
+// 🟨 JS — 클래스 앞에 new를 반드시 붙임
+const e = new Error("실패");
+const d = new Date();
+const p = new Promise(...);
+```
+
+⚠️ 안 붙이면 `TypeError: Promise constructor cannot be invoked without 'new'`가 납니다. 파이썬은 클래스도 함수처럼 그냥 부르지만, **JS는 "이건 인스턴스 생성이다"를 `new`로 명시**합니다.
+
+**생성자가 받는 인자는 함수 하나**(executor)입니다. 그리고 그 함수는 **Promise가 만들어서 넘겨주는 `resolve`/`reject` 두 함수**를 받습니다.
+
+- `resolve`/`reject`는 **내가 정의하는 게 아니라 받아쓰는 것**입니다. 이름은 아무거나 써도 되고(순서로 결정), **호출만 하면 됩니다**.
+- executor는 `new` 하는 **즉시 실행**됩니다.
+- `resolve("데이터 도착!")`을 부르는 순간 상태가 `pending → fulfilled`로 확정되고 값이 저장됩니다. 한 번 확정되면 두 번째 `resolve`/`reject`는 무시됩니다.
+- 즉 **"이 Promise가 언제 끝난 걸로 칠지"를 내가 직접 누르는 스위치**가 `resolve`/`reject`입니다.
+
+🐍 Future를 직접 만들어 채우는 코드와 정확히 대응됩니다.
+
+```python
+# 🐍 Python — 빈 상자를 만들고 나중에 채우기
+fut = asyncio.get_running_loop().create_future()
+loop.call_later(0.5, lambda: fut.set_result("데이터 도착!"))  # ≈ resolve(...)
+# fut.set_exception(Exception("실패"))                        # ≈ reject(...)
+value = await fut  # "데이터 도착!"
+```
+
+**`.then` / `.catch`에 넘기는 것도 전부 콜백**입니다 — "상자가 채워지면 이 함수 좀 불러줘"라는 예약이죠(🐍 `fut.add_done_callback(...)`). `await`는 이 등록을 문법으로 감춘 것뿐이라, 아래 둘은 완전히 같은 일을 합니다.
+
+```js
+// 위 .then/.catch와 동일
+try {
+  const value = await promise;
+  console.log("성공:", value);
+} catch (err) {
+  console.log("실패:", err.message);
+}
+```
+
+**실행 순서**를 따라가 보세요.
+
+```
+1. new Promise(...)   → executor 즉시 실행 → setTimeout 예약만 걸고 통과
+2. .then/.catch 등록  → "나중에 불러줘" 예약만 함
+3. (동기 코드 전부 끝남)
+4. 500ms 후 → resolve("데이터 도착!") → 상자 확정
+5. 등록해둔 .then 콜백 실행 → "성공: 데이터 도착!"
+```
+
+직접 찍어서 확인해 보세요.
+
+```js
+const p = new Promise((resolve) => {
+  console.log("executor는 즉시 실행됨"); // ← 이게 먼저 찍히는지 확인
+  setTimeout(() => resolve("데이터 도착!"), 500);
+});
+console.log("동기 코드가 먼저 끝남");
+console.log(await p); // 500ms 뒤 "데이터 도착!"
+```
+
 💡 **실전 필수 패턴 — `sleep` 만들기**: `asyncio.sleep`에 해당하는 게 JS엔 기본 제공이 안 됩니다. Promise로 직접 만듭니다. 이 한 줄은 통째로 외워두면 두고두고 씁니다.
 
 ```js
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // 사용: await sleep(1000);  → 🐍 await asyncio.sleep(1)
 ```
+
+💡 이제 이 한 줄이 읽힙니다: "ms 뒤에 `resolve`를 불러주는 상자". `setTimeout(resolve, ms)`에서 **`resolve`에 괄호가 없죠** — 함수 자체를 콜백으로 넘긴 겁니다. 실패할 일이 없으니 `reject`는 아예 안 받았고요.
 
 ### 2-5. 콜백 → Promise → async/await (진화 3단계)
 
@@ -475,6 +579,87 @@ console.log("4");
 ```
 
 💡 지금은 "**동기 코드 → Promise → setTimeout** 순서"라는 감만 있으면 충분합니다. 깊은 큐 이론은 나중에 필요할 때.
+
+### 2-8. `02-async-basics.js` 최종본 — ⭐ 실제로 칠 코드
+
+여기까지가 전부 설명이었고, **파일에 실제로 넣을 건 이 하나**입니다. 위 조각들을 순서가 섞이지 않게 다듬고 이어붙인 것이라 그대로 치고 돌리면 됩니다.
+
+```js
+// 02-async-basics.js — 세션 2 실습 전체
+// 실행: node 02-async-basics.js   (package.json에 "type": "module" 필요)
+
+// 2-4. sleep 헬퍼 — 아래에서 계속 씀 (통째로 외우기)
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ─── 2-3. setTimeout은 논블로킹 ───
+console.log("[2-3] 1. 시작");
+setTimeout(() => console.log("[2-3] 2. 1초 뒤"), 1000);
+console.log("[2-3] 3. 끝");
+await sleep(1100); // 위 타이머가 끝나는 걸 보고 다음 절로 넘어감
+
+// ─── 2-4. Promise 직접 만들기 ───
+const promise = new Promise((resolve, reject) => {
+  console.log("[2-4] executor는 new 하는 즉시 실행됨");
+  setTimeout(() => resolve("데이터 도착!"), 500);
+  // reject(new Error("실패")); // ← 주석을 풀면 .catch로 감
+});
+
+promise
+  .then((value) => console.log("[2-4] .then 성공:", value))
+  .catch((err) => console.log("[2-4] .catch 실패:", err.message));
+
+console.log("[2-4] 동기 코드가 먼저 끝남");
+console.log("[2-4] await 결과:", await promise); // .then과 같은 일
+
+// ─── 2-5. async/await로 순차 실행 ───
+async function greet() {
+  await sleep(500);
+  console.log("[2-5] Kim");
+  await sleep(500);
+  console.log("[2-5] 반가워요");
+}
+await greet();
+
+// ─── 2-6. async 함수의 반환값은 항상 Promise ───
+async function getNumber() {
+  return 42;
+}
+console.log("[2-6] await 없이:", getNumber()); // Promise { 42 }
+console.log("[2-6] await 하면:", await getNumber()); // 42
+
+// ─── 2-7. 실행 순서 함정 ───
+console.log("[2-7] 1");
+setTimeout(() => console.log("[2-7] 2 (setTimeout)"), 0);
+Promise.resolve().then(() => console.log("[2-7] 3 (Promise)"));
+console.log("[2-7] 4");
+// 출력: 1, 4, 3, 2
+```
+
+```bash
+node 02-async-basics.js
+```
+
+기대 출력 (**소스 순서와 다른 줄**이 오늘의 핵심입니다):
+
+```
+[2-3] 1. 시작
+[2-3] 3. 끝                          ← ⚠️ 2번보다 먼저 (setTimeout은 논블로킹)
+[2-3] 2. 1초 뒤
+[2-4] executor는 new 하는 즉시 실행됨   ← ⚠️ new 하는 순간 바로 실행
+[2-4] 동기 코드가 먼저 끝남
+[2-4] .then 성공: 데이터 도착!
+[2-4] await 결과: 데이터 도착!
+[2-5] Kim
+[2-5] 반가워요
+[2-6] await 없이: Promise { 42 }      ← ⚠️ 42가 아니라 Promise
+[2-6] await 하면: 42
+[2-7] 1
+[2-7] 4
+[2-7] 3 (Promise)                    ← ⚠️ 마이크로태스크가 먼저
+[2-7] 2 (setTimeout)
+```
+
+💡 `await sleep(1100)`이 절과 절 사이에 있는 이유: 이게 없으면 세 절의 타이머가 뒤섞여서 출력이 엉킵니다. 실습 편의를 위한 구분선이지, 실무 패턴은 아니에요.
 
 ### ✅ 세션 2 체크
 - [ ] JS는 "항상 싱글 스레드 + 이벤트 루프 1개"임을 이해
