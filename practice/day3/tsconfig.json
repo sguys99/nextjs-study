@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "esnext",                  // 최신 JS 문법 기준으로 해석
+    "module": "nodenext",                // Node의 ESM 규칙(확장자 포함 import)을 따름
+    "strict": true,                      // ⭐ 엄격 모드 전부 ON (null 검사 포함) — 항상 켭니다
+    "noEmit": true,                      // .js 파일 생성 안 함 (검사만) — 실행은 node가 직접
+    "allowImportingTsExtensions": true,  // import "./x.ts" 허용 (node 직접 실행과 짝)
+    "verbatimModuleSyntax": true,        // 타입 전용 import는 "import type"으로 강제
+    "erasableSyntaxOnly": true,          // node가 못 지우는 문법(enum 등) 금지 — 아래 1-6
+    "skipLibCheck": true                 // 라이브러리 내부 타입 검사 생략 (속도)
+  }
+}
