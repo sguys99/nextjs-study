@@ -247,11 +247,11 @@ if (typeof u === "object" && u !== null) {
 ⚠️ **`enum`은 안 씁니다.** 로드맵에 언급되지만 두 가지 이유로 건너뜁니다: ① 모던 TS는 리터럴 유니온(`type Status = "pending" | "done"`)을 선호하고, ② `enum`은 "지워질 수 없는" 문법이라 Node 직접 실행이 안 됩니다(우리 tsconfig의 `erasableSyntaxOnly`가 막아줌). 유니온이 더 가볍고 JS 결과물과 1:1이에요.
 
 ### ✅ 세션 1 체크
-- [ ] `pnpm typecheck` / `pnpm lint`가 돌아감
-- [ ] `node file.ts` 직접 실행 성공
-- [ ] "node는 검사 안 하고, tsc가 검사한다"를 직접 체험함
-- [ ] `any`/`unknown`/`never` 차이를 말로 설명 가능
-- [ ] 어노테이션이 필요한 3곳(함수 시그니처·빈 배열·외부 데이터)을 앎
+- [x] `pnpm typecheck` / `pnpm lint`가 돌아감
+- [x] `node file.ts` 직접 실행 성공
+- [x] "node는 검사 안 하고, tsc가 검사한다"를 직접 체험함
+- [x] `any`/`unknown`/`never` 차이를 말로 설명 가능
+- [x] 어노테이션이 필요한 3곳(함수 시그니처·빈 배열·외부 데이터)을 앎
 
 ---
 
