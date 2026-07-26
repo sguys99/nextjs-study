@@ -679,11 +679,11 @@ if (result.success) {
 💡 **왜 지금 배우나**: Day 6에서 에이전트 도구(tool)의 입력 스키마를 Zod로 정의합니다 — LLM이 도구를 올바른 인자로 호출했는지 **런타임에 검증**해야 하니까요. 오늘은 `z.object` / `parse` / `safeParse` / `z.infer` 네 가지만 손에 붙이면 충분합니다.
 
 ### ✅ 세션 4 체크
-- [ ] `Partial`/`Pick`/`Omit`/`Record` 중 3개 이상 사용
-- [ ] `Promise<T>` 반환 타입의 async 함수 작성
-- [ ] `as` 단언이 왜 위험한지 설명 가능
-- [ ] Zod 스키마 정의 → `parse` → `z.infer`로 타입 추출
-- [ ] `safeParse` 결과를 narrowing으로 분기
+- [x] `Partial`/`Pick`/`Omit`/`Record` 중 3개 이상 사용
+- [x] `Promise<T>` 반환 타입의 async 함수 작성
+- [x] `as` 단언이 왜 위험한지 설명 가능
+- [x] Zod 스키마 정의 → `parse` → `z.infer`로 타입 추출
+- [x] `safeParse` 결과를 narrowing으로 분기
 
 ---
 
