@@ -538,11 +538,11 @@ function summarize(r: TrainResult): string {
 🐍 파이썬의 `match` + `assert_never()`와 정확히 같은 패턴입니다. 위력은 이겁니다: 나중에 `status: "cancelled"`를 유니온에 추가하면, **이 switch가 컴파일 에러를 냅니다** ("cancelled가 never에 할당 안 됨"). 처리 안 한 케이스를 컴파일러가 찾아주는 거예요. Day 6에서 AI SDK의 message-parts를 렌더링할 때 이 패턴을 그대로 씁니다.
 
 ### ✅ 세션 3 체크
-- [ ] 함수 시그니처(매개변수·반환) 타이핑
-- [ ] 제네릭 함수 작성 + 호출 시 타입 자동 추론 확인
-- [ ] `extends`로 제네릭 제약 걸기
-- [ ] `typeof` narrowing으로 유니온 분기
-- [ ] discriminated union + `never` exhaustive check 작성
+- [x] 함수 시그니처(매개변수·반환) 타이핑
+- [x] 제네릭 함수 작성 + 호출 시 타입 자동 추론 확인
+- [x] `extends`로 제네릭 제약 걸기
+- [x] `typeof` narrowing으로 유니온 분기
+- [x] discriminated union + `never` exhaustive check 작성
 
 ---
 
