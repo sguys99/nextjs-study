@@ -37,7 +37,7 @@ let a: any = "hello";
 a.foo.bar.baz; /// ✅ 통과 (그리고 런타임에 폭발) — 그래서 금지
 
 // // unknown: "타입을 모름. 쓰려면 먼저 좁혀라" — 안전한 any
-let u: unknown = = JSON.parse('{"x": 1}');
+let u: unknown == JSON.parse('{"x": 1}');
 // u.x; // 에러: 좁히기 전에 사용 불가
 
 if (typeof u === "object" && u !== null) {
