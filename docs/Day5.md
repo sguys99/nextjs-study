@@ -1126,25 +1126,53 @@ export function ChatPanel({ initialMessages = [] }: ChatPanelProps) {
 import { ChatPanel } from "@/components/ChatPanel";
 import type { Message } from "@/types";
 
-export default async function Home() {
-  // 나중에 DB에서 읽어올 자리. 지금은 서버에서 만든 인사말 하나.
-  const initialMessages: Message[] = [
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "안녕하세요! 무엇을 도와드릴까요?",
-      createdAt: Date.now(),
-    },
-  ];
+// 나중에 DB에서 읽어올 자리. 지금은 서버에서 만든 인사말 하나.
+// ⚠️ Date.now()는 비순수 함수라 컴포넌트 본문 안에서 부르면 lint 에러가 납니다.
+//    모듈 스코프는 렌더가 아니라 파일 로드 시 딱 한 번 평가되므로 안전합니다.
+const INITIAL_MESSAGES: Message[] = [
+  {
+    id: "welcome",
+    role: "assistant",
+    content: "안녕하세요! 무엇을 도와드릴까요?",
+    createdAt: Date.now(),
+  },
+];
 
-  return <ChatPanel initialMessages={initialMessages} />;
+export default async function Home() {
+  return <ChatPanel initialMessages={INITIAL_MESSAGES} />;
 }
 ```
+
+⚠️ **왜 배열을 함수 밖으로 뺐나 — `react-hooks/purity` 규칙**
+
+`Date.now()`를 컴포넌트 본문(render) 안에서 부르면 `pnpm lint`가 이렇게 막습니다.
+
+**📄 터미널 출력 예시** — 함수 안에 뒀을 때 나는 에러
+
+```
+Error: Cannot call impure function during render
+`Date.now` is an impure function. Calling an impure function can produce
+unstable results that update unpredictably when the component re-renders.
+  react-hooks/purity
+```
+
+React의 렌더 함수는 **순수 함수**여야 합니다 — 같은 props면 항상 같은 결과. `Date.now()`, `Math.random()`, `crypto.randomUUID()`는 부를 때마다 값이 달라지므로 렌더 안에서 금지입니다.
+
+🐍 파이썬의 기본 인자 평가 시점과 똑같은 구도입니다.
+
+```python
+# 🐍 def f(t=time.time()) → 함수 정의 시점(모듈 로드)에 1회 평가
+# 🐍 def f(): t = time.time() → 호출할 때마다 다름
+```
+
+모듈 스코프의 `INITIAL_MESSAGES`가 위쪽, 함수 안의 `const`가 아래쪽에 해당합니다. 덤으로 **매 렌더마다 새 배열을 만들지 않으니 prop의 참조가 고정**되는 이득도 있습니다.
+
+💡 `ChatPanel.tsx`의 `Date.now()`(4-4 위쪽 블록)는 **이벤트 핸들러 안**이라 걸리지 않습니다. 핸들러는 렌더 중이 아니라 사용자가 전송할 때 실행되니까요. **규칙은 "렌더 본문에서는 순수하게, 부수효과는 이벤트 핸들러나 `useEffect` 안에서"** 한 줄입니다.
 
 **여기서 일어난 일을 짚어보세요:**
 
 1. `page.tsx`는 **서버**에서 실행됩니다. 나중에 `await db.getMessages()`로 바뀔 자리예요.
-2. `initialMessages`(배열)는 **직렬화되어** 브라우저로 넘어갑니다 — JSON으로 표현 가능하니까 OK.
+2. `INITIAL_MESSAGES`(배열)는 **직렬화되어** 브라우저로 넘어갑니다 — JSON으로 표현 가능하니까 OK.
 3. `ChatPanel`부터가 **클라이언트 경계**입니다. 여기부터 `useState`가 살아있죠.
 4. `setMessages(prev => prev.map(...))` — Day 4의 **불변 업데이트**가 스트리밍에서 그대로 쓰였습니다.
 

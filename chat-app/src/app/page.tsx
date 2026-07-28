@@ -1,21 +1,19 @@
-// src/app/page.tsx  (서버 컴포넌트)
-import { ClientBox } from "@/components/ClientBox";
+// src/app/page.tsx   ← 서버 컴포넌트
+import { ChatPanel } from "@/components/ChatPanel";
+import type { Message } from "@/types";
+
+// 나중에 DB에서 읽어올 자리. 지금은 서버에서 만든 인사말 하나.
+// Date.now()는 비순수 함수라 컴포넌트 본문(render) 안에서 호출할 수 없다.
+// 모듈 스코프는 렌더가 아니므로 여기서 한 번만 평가된다.
+const INITIAL_MESSAGES: Message[] = [
+  {
+    id: "welcome",
+    role: "assistant",
+    content: "안녕하세요! 무엇을 도와드릴까요?",
+    createdAt: Date.now(),
+  },
+];
 
 export default async function Home() {
-  console.log("🖥️ 서버에서 실행됨:", new Date().toISOString());
-
-  // 서버에서 직접 데이터 페칭 — useEffect도 useState도 없다!
-  const res = await fetch("https://api.github.com/users/torvalds", {
-    cache: "no-store",
-  });
-  const user = await res.json();
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <p className="text-sm">
-        서버가 가져온 값: <b>{user.name}</b> (팔로워 {user.followers})
-      </p>
-      <ClientBox />
-    </div>
-  );
+  return <ChatPanel initialMessages={INITIAL_MESSAGES} />;
 }
