@@ -70,7 +70,7 @@ nextjs-study/
 
 💡 **왜 Next.js가 아니라 Vite로 시작하나요?** Next.js에는 "서버 컴포넌트 vs 클라이언트 컴포넌트"라는 큰 개념이 하나 더 얹혀 있습니다(Day 5의 핵심). 두 개를 동시에 배우면 "이게 React 규칙인가 Next.js 규칙인가"가 뒤섞여요. 오늘은 **순수 React만** 깨끗하게 배우고, 내일 Next.js로 이 채팅 UI를 그대로 이관합니다. 이관 작업 자체가 두 프레임워크의 경계를 알려주는 최고의 학습이 됩니다.
 
-💡 **shadcn/ui는 Day 5로 미룹니다.** Vite에서 shadcn을 붙이려면 path alias·`components.json` 등 배선이 늘어나는데, Next.js에서는 훨씬 매끄럽습니다. 오늘은 **Tailwind만** 최소한으로 씁니다(여백/정렬/색 정도). 로드맵의 "CSS 늪 회피" 원칙 그대로예요.
+💡 **shadcn/ui는 Day 5로 미룹니다.** (shadcn/ui = Tailwind + Radix UI로 만든 버튼·입력창 같은 **컴포넌트 소스 코드를 내 프로젝트에 복사해 넣어주는 CLI**. `npm install`로 가져다 쓰는 라이브러리가 아닙니다 — 자세한 건 Day 5 §4-5.) Vite에서 붙이려면 path alias·`components.json` 등 배선이 늘어나는데, Next.js에서는 훨씬 매끄럽습니다. 오늘은 **Tailwind만** 최소한으로 씁니다(여백/정렬/색 정도). 로드맵의 "CSS 늪 회피" 원칙 그대로예요.
 
 ---
 

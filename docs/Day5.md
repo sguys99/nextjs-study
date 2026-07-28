@@ -68,6 +68,7 @@ nextjs-study/
     ├── next.config.ts
     ├── tsconfig.json
     ├── eslint.config.mjs
+    ├── components.json             ← 4-5에서 shadcn init이 생성
     ├── .env.local                  ← ⚠️ git에 올리지 않음
     └── src/
         ├── app/                    ← 라우팅의 뿌리 (파일 위치 = URL)
@@ -80,12 +81,18 @@ nextjs-study/
         │       ├── health/route.ts ← "GET /api/health"
         │       └── chat/route.ts   ← ⭐ Day 6에서 LLM이 붙을 자리
         ├── components/
+        │   ├── ui/                 ← 4-5에서 shadcn CLI가 자동 생성 (손으로 안 씀)
+        │   │   ├── button.tsx
+        │   │   ├── input.tsx
+        │   │   └── scroll-area.tsx
         │   ├── ChatPanel.tsx       ← "use client" 경계
         │   ├── MessageList.tsx
         │   ├── MessageItem.tsx
         │   └── ChatInput.tsx
         ├── hooks/
         │   └── useAutoScroll.ts    ← Day 4에서 그대로 복사
+        ├── lib/
+        │   └── utils.ts            ← 4-5에서 shadcn init이 생성 (cn 헬퍼)
         └── types.ts                ← Day 4에서 그대로 복사
 ```
 
@@ -128,6 +135,7 @@ Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일
 | 4-3 | `MessageList.tsx`, `ChatInput.tsx` | ✏️ 맨 윗줄에 `"use client"` 한 줄만 추가 |
 | 4-4 | `src/components/ChatPanel.tsx` | 🆕 |
 | 4-4 | `src/app/page.tsx` | ♻️ 2-7 실험 코드를 최종본으로 교체 |
+| 4-5 | `components.json`, `src/lib/utils.ts`, `src/components/ui/*` | 🆕 (손으로 안 씀 — shadcn CLI가 자동 생성) |
 | 4-5 | `src/components/ChatInput.tsx` | ♻️ shadcn/ui `Button`/`Input` 적용 전체본 |
 | 5-② | `src/app/error.tsx` | 🆕 (추가 연습) |
 
@@ -1148,6 +1156,63 @@ export default async function Home() {
 
 Day 4에서 미뤄뒀던 이유가 여기 있습니다 — Next.js에서 설치가 훨씬 매끄럽거든요.
 
+#### 4-5-1. ⭐ shadcn/ui는 "라이브러리"가 아닙니다
+
+이름 때문에 MUI·Ant Design 같은 UI 라이브러리로 오해하기 쉬운데, **작동 방식이 근본적으로 다릅니다.**
+
+> **shadcn/ui = `npm install`로 가져다 쓰는 패키지가 아니라, CLI로 내 프로젝트 안에 소스 코드를 복사해 넣는 컴포넌트 모음.**
+
+🐍 파이썬으로 대조하면 차이가 선명합니다.
+
+**📖 읽기 전용** — 개념 대조용 파이썬 코드
+
+```python
+# 🐍 일반 UI 라이브러리 방식 (MUI, Ant Design, Chakra …)
+pip install some_ui_lib
+from some_ui_lib import Button          # 남의 코드.
+                                        # 고치려면 상속·override·monkey-patch
+
+# 🐍 shadcn/ui 방식
+# button.py 파일이 내 저장소 안에 그냥 복사돼 있는 상태
+from myapp.components.ui.button import Button   # 내 코드. 열어서 고치면 끝
+```
+
+명령 한 줄이면:
+
+**📖 읽기 전용** — 4-5-3에서 실제로 실행합니다
+
+```bash
+pnpm dlx shadcn@latest add button
+```
+
+→ `node_modules` 어딘가가 아니라 **`src/components/ui/button.tsx`라는 파일이 새로 생깁니다.** 그 순간부터 그건 남의 코드가 아니라 **내가 커밋하고 내가 고치는 내 코드**입니다.
+
+#### 4-5-2. 3층 구조 — 실제로 무엇이 설치되나
+
+"아무것도 설치 안 한다"는 아닙니다. 정확히는 **UI 코드는 내 것, 동작 엔진은 의존성**입니다.
+
+| 층 | 정체 | 담당 | 어디에 |
+|---|---|---|---|
+| ③ shadcn 레시피 | `.tsx` 파일 한 장 | ①과 ②를 묶은 조합 | **`src/components/ui/`** (내 코드) |
+| ② Tailwind CSS | 유틸리티 클래스 | 생김새(여백·색·모서리) | 이미 있음 |
+| ① Radix UI | headless 컴포넌트 | **동작** — 접근성, 키보드 조작, 포커스 트랩, ARIA | `node_modules` (진짜 의존성) |
+
+💡 **①이 핵심 가치입니다.** 드롭다운 하나만 해도 "Esc로 닫기, ↑↓로 이동, 포커스가 밖으로 새지 않게 가두기, 스크린리더용 ARIA 속성" 같은 걸 제대로 구현하려면 며칠이 걸립니다. Radix가 그걸 스타일 0인 상태로 제공하고, shadcn이 거기에 Tailwind 옷을 입혀 `.tsx` 한 장으로 정리해준 것 — 그게 shadcn/ui의 전부입니다.
+
+⚠️ 그래서 `add` 명령은 파일만 만드는 게 아니라 **필요한 Radix 패키지를 `package.json`에 함께 추가**합니다. `Button`처럼 단순한 건 의존성이 거의 없지만, `Dialog`·`DropdownMenu` 같은 건 `@radix-ui/react-*`가 딸려 옵니다.
+
+**트레이드오프를 정확히 알고 쓰세요.**
+
+| | 일반 UI 라이브러리 | shadcn/ui |
+|---|---|---|
+| 디자인 수정 | CSS 우선순위 싸움, `!important` | **파일 열어서 클래스 수정** ✅ |
+| 번들 크기 | 안 쓰는 컴포넌트도 딸려올 수 있음 | 추가한 것만 존재 ✅ |
+| 라이브러리 업그레이드 | `npm update` 한 줄 | ⚠️ **자동 업데이트 없음** (4-5-5) |
+| 코드량 | `node_modules`에 숨음 | ⚠️ 내 저장소에 파일이 쌓임 |
+| 러닝커브 | 문서 읽고 props 외우기 | **코드를 직접 읽으면 됨** ✅ |
+
+#### 4-5-3. 설치 — `init`이 실제로 하는 일
+
 **⌨️ 터미널 실행**
 
 ```bash
@@ -1155,7 +1220,49 @@ cd chat-app
 pnpm dlx shadcn@latest init
 ```
 
-질문에는 기본값(Neutral 등)을 고르면 됩니다. 그다음 필요한 컴포넌트만 골라 설치:
+질문에는 기본값(base color는 `Neutral` 등)을 고르면 됩니다. 이 한 번의 명령이 **네 가지**를 합니다.
+
+| 만들어지는 것 | 정체 |
+|---|---|
+| `components.json` | 설정 파일. "ui 컴포넌트는 어디에 넣을지, 별칭(`@/`)은 뭔지, 아이콘은 뭘 쓸지" |
+| `src/lib/utils.ts` | `cn()` 헬퍼 함수 하나 (아래 설명) |
+| `src/app/globals.css`에 CSS 변수 추가 | `--background`, `--primary` 등 테마 색. 다크모드도 여기서 갈림 |
+| `package.json`에 의존성 추가 | `clsx`, `tailwind-merge`, `lucide-react`(아이콘) 등 |
+
+⚠️ **`components.json`이 없으면 `add` 명령이 동작하지 않습니다.** 문서 7절 함정표의 "shadcn 컴포넌트 import 실패"가 대부분 이 파일 문제예요.
+
+**`cn()` 함수 — 앞으로 계속 보게 될 물건**
+
+`src/lib/utils.ts`를 열면 딱 이것만 들어 있습니다.
+
+**📖 읽기 전용** — `init`이 자동 생성한 파일입니다 (손으로 만들지 않음)
+
+```ts
+// src/lib/utils.ts
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+하는 일은 두 가지입니다.
+
+1. **`clsx`** — 조건부로 클래스 문자열을 조립. `cn("p-4", isActive && "bg-blue-600")` → `false`인 건 알아서 빠집니다.
+2. **`twMerge`** — **Tailwind 클래스 충돌을 뒤쪽 승리로 정리.** `cn("p-2", "p-4")` → `"p-4"`. 이게 핵심이에요. 그냥 문자열을 이어붙이면 `"p-2 p-4"`가 되고 어느 쪽이 이길지는 CSS 파일 순서에 달리는데, `twMerge`는 **나중에 쓴 게 이긴다**를 보장합니다.
+
+🐍 파이썬으로 치면 `" ".join(x for x in [...] if x)`에 **"같은 계열 옵션은 마지막 것만 남긴다"**는 규칙을 얹은 것입니다.
+
+덕분에 이런 게 됩니다 — 컴포넌트의 기본 패딩을 사용하는 쪽에서 그냥 덮어쓰기:
+
+**📖 읽기 전용** — 사용 예시
+
+```tsx
+<Button className="px-8">전송</Button>   // 내부 기본 px-4를 px-8이 이김
+```
+
+그다음 필요한 컴포넌트만 골라 설치합니다.
 
 **⌨️ 터미널 실행** — `src/components/ui/`에 파일이 자동 생성됩니다 (손으로 만들지 않습니다)
 
@@ -1163,9 +1270,9 @@ pnpm dlx shadcn@latest init
 pnpm dlx shadcn@latest add button input scroll-area
 ```
 
-⚠️ **shadcn/ui는 npm 라이브러리가 아닙니다.** `node_modules`에 들어가는 게 아니라 **`src/components/ui/` 안에 소스 코드가 복사**됩니다. 그래서 마음대로 고칠 수 있어요. 🐍 `pip install`보다는 "코드 스니펫을 프로젝트에 붙여넣기"에 가깝습니다.
+💡 **생성된 `src/components/ui/button.tsx`를 꼭 한 번 열어보세요.** Day 4에서 배운 props 타이핑·구조 분해·조건부 클래스가 전부 들어 있는, **잘 짜인 실전 React 컴포넌트 예제**입니다. `variant="outline"` 같은 props가 마법이 아니라 그냥 "클래스 문자열을 골라주는 스위치"라는 걸 눈으로 확인할 수 있어요.
 
-`ChatInput.tsx`에 적용합니다.
+#### 4-5-4. `ChatInput.tsx`에 적용
 
 **♻️ 덮어쓰기 — `src/components/ChatInput.tsx`** (4-3에서 `"use client"`만 붙였던 그 파일입니다. 아래는 **전체본**이니 기존 내용을 전부 지우고 교체하세요)
 
@@ -1211,6 +1318,28 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
 
 💡 **스타일에 시간 쓰지 마세요.** 로드맵의 원칙대로, shadcn/ui 컴포넌트를 가져다 쓰고 Tailwind는 여백·정렬 수준만 만집니다. 오늘의 학습 목표는 CSS가 아닙니다.
 
+#### 4-5-5. ⚠️ "내 코드"라서 생기는 대가 — 업데이트
+
+장점의 뒷면입니다. **`src/components/ui/`의 파일은 내 코드이므로, shadcn이 컴포넌트를 개선해도 자동으로 따라오지 않습니다.**
+
+| | 일반 라이브러리 | shadcn/ui |
+|---|---|---|
+| 업데이트 방법 | `pnpm update some-ui` | `pnpm dlx shadcn@latest add button` **다시 실행** |
+| 내가 고친 부분 | 안 건드림 | ⚠️ **덮어쓰기 여부를 물어봄 → 예라고 하면 내 수정분이 사라짐** |
+
+💡 **실전 대처는 단순합니다**: ui 컴포넌트를 커밋해두고, 다시 `add`한 뒤 `git diff`로 내 수정분이 날아갔는지 확인하세요. 애초에 **`ui/` 파일은 최소한만 고치고**, 앱 고유의 변형은 감싸는 컴포넌트를 따로 만드는 쪽이 관리가 편합니다.
+
+**그래서 언제 쓰나:**
+
+| 상황 | 판단 |
+|---|---|
+| 버튼·인풋·카드처럼 흔한 UI | ✅ shadcn/ui |
+| 드롭다운·모달·툴팁처럼 **접근성이 까다로운** UI | ✅✅ 직접 만들지 마세요 |
+| 이 앱에만 있는 고유 컴포넌트 (`MessageItem` 등) | ❌ 그냥 직접 작성 |
+| 디자인 시스템이 이미 확고한 회사 | ❌ 사내 라이브러리 우선 |
+
+⚠️ 우리 채팅 앱의 `MessageItem`·`MessageList`·`ChatPanel`은 **shadcn으로 바꾸지 않습니다.** 앱 고유 로직이 들어간 컴포넌트니까요. shadcn은 그 안에서 쓰는 **부품(`Button`, `Input`)** 수준으로만 씁니다.
+
 ### 4-6. 최종 검증
 
 **⌨️ 터미널 실행** — `chat-app/`에서
@@ -1242,6 +1371,8 @@ Route (app)                    Size     First Load JS
 - [ ] 서버 컴포넌트 → 클라이언트 컴포넌트로 `initialMessages` 전달 성공
 - [ ] 스트리밍 응답이 한 글자씩 화면에 쌓이는 것 확인 ⭐
 - [ ] shadcn/ui `Button`/`Input` 적용
+- [ ] **"shadcn/ui는 라이브러리가 아니라 소스 코드 복사"**를 설명 가능 ⭐
+- [ ] `src/components/ui/button.tsx`를 열어서 읽어봄
 - [ ] `pnpm build` 성공
 
 ---
@@ -1289,7 +1420,7 @@ Day 2에서 배운 `AbortController`를 `ChatPanel`에 붙여 "중단" 버튼을
 - [ ] `.env.local`에서 값 읽기 + `NEXT_PUBLIC_` 규칙 ⭐(로드맵 필수)
 - [ ] Route Handler에서 `ReadableStream`으로 스트리밍 응답
 - [ ] 채팅 UI 이관 완료 + 스트리밍 연결 동작
-- [ ] shadcn/ui 최소 적용
+- [ ] shadcn/ui 최소 적용 + **"복사해 넣는 방식"의 장단점 설명 가능**
 
 ---
 
@@ -1314,6 +1445,9 @@ Day 2에서 배운 `AbortController`를 `ChatPanel`에 붙여 "중단" 버튼을
 | `dev`는 되는데 `build`가 실패 | 서버/클라 경계 위반, 타입 에러 | 빌드 에러 메시지의 파일 확인 |
 | `<a>`로 이동하면 상태가 날아감 | 전체 페이지 새로고침 | `<Link>` 사용 |
 | shadcn 컴포넌트 import 실패 | `init`을 안 했거나 별칭 설정 문제 | `components.json` 확인 |
+| `Cannot find module '@/lib/utils'` | `init`이 만든 `cn` 헬퍼가 없음(수동 설치 등) | `pnpm dlx shadcn@latest init` 재실행 |
+| `<Button className="px-8">`이 안 먹음 | Tailwind 클래스 충돌 | `cn()`을 거치는지 확인 (`twMerge`가 뒤쪽을 살림) |
+| 다시 `add` 했더니 내 수정이 사라짐 | `ui/` 파일은 **내 코드**라 덮어쓰기됨 | 커밋 후 `add` → `git diff`로 확인 (4-5-5) |
 
 ---
 
