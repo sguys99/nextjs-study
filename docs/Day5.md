@@ -947,12 +947,12 @@ return StreamingResponse(gen(), media_type="text/plain")
 💡 **오늘 이걸 직접 만들어보는 이유**: Day 6의 `useChat` 훅은 이 배선을 전부 감춰버립니다. 감춰지기 **전에** 원리를 한 번 봐두면, 나중에 스트리밍이 깨졌을 때 어디를 볼지 알 수 있어요.
 
 ### ✅ 세션 3 체크
-- [ ] `/api/health` GET, `/api/echo` POST 동작 확인
-- [ ] `.env.local` 값을 서버에서 읽기 성공 (`/api/health`의 `app` 필드)
-- [ ] `NEXT_PUBLIC_` 규칙 설명 가능 ⭐
-- [ ] `/about`의 Server Action 폼 → 터미널에 로그 확인
-- [ ] (선택) `<Suspense>`로 느린 부분만 나중에 채우기 확인
-- [ ] `/api/chat`에서 글자 단위 스트리밍 확인 (curl)
+- [x] `/api/health` GET, `/api/echo` POST 동작 확인
+- [x] `.env.local` 값을 서버에서 읽기 성공 (`/api/health`의 `app` 필드)
+- [x] `NEXT_PUBLIC_` 규칙 설명 가능 ⭐
+- [x] `/about`의 Server Action 폼 → 터미널에 로그 확인
+- [x] (선택) `<Suspense>`로 느린 부분만 나중에 채우기 확인
+- [x] `/api/chat`에서 글자 단위 스트리밍 확인 (curl)
 
 ---
 

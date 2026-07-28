@@ -1,0 +1,27 @@
+// src/app/api/chat/route.ts
+// ⚠️ Day 6에서 이 파일의 내용이 Vercel AI SDK의 streamText로 교체됩니다.
+
+export async function POST(req: Request) {
+  const { message } = (await req.json()) as { message?: string };
+
+  if (!message?.trim()) {
+    return Response.json({ error: "message가 필요합니다" }, { status: 400 });
+  }
+
+  const reply = `(가짜 응답) "${message}" 라고 하셨군요. 아직 LLM은 연결되지 않았습니다.`;
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      for (const char of reply) {
+        controller.enqueue(encoder.encode(char));      // 한 글자씩 내보냄
+        await new Promise((r) => setTimeout(r, 25));   // 타이핑 효과
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
