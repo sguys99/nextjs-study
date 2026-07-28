@@ -4,7 +4,7 @@
 > **선행 조건**: Day 4 완료 (`useState`/`useEffect`/props/커스텀 훅 사용 가능, `practice/day4/`에 채팅 UI가 동작하는 상태)
 > **목표**: Next.js 16 App Router의 구조와 **서버 컴포넌트 / 클라이언트 컴포넌트** 모델을 몸에 새기고, Day 4 채팅 UI를 Next.js 위로 이사시킨다. 그리고 Day 6에 LLM이 붙을 **API 자리를 미리 파둔다.**
 > **핵심 태그**: 🐍 = 파이썬 대비 포인트 · 💡 = 팁 · ⚠️ = 함정
-> **코드 블록 태그**: 🆕 = 새로 만드는 파일 · ♻️ = 이미 있는 파일 덮어쓰기 (→ 0-3 참고)
+> **코드 블록 태그**: 🆕 새 파일 · ♻️ 덮어쓰기 · ✏️ 부분 수정 · ⌨️ 터미널 실행 · 📖 읽기 전용 · 📄 출력 예시 (→ 0-3 참고)
 
 ---
 
@@ -53,6 +53,8 @@ Next.js는 **이 둘을 똑같은 언어(TSX)로, 같은 폴더 안에서** 씁�
 
 Day 1~4는 "하루짜리 연습 폴더"였습니다. **오늘부터는 7일 여정의 최종 산출물이 될 앱 하나를 계속 키웁니다.**
 
+**📖 읽기 전용** — 오늘 하루가 끝났을 때의 **최종 모습**입니다. 지금 한꺼번에 만드는 게 아니라 세션 1~4를 따라가며 하나씩 생깁니다
+
 ```
 nextjs-study/
 ├── docs/
@@ -89,20 +91,28 @@ nextjs-study/
 
 💡 `practice/day4/`는 **지우지 마세요.** 세션 4에서 두 폴더를 나란히 열어놓고 "무엇이 그대로 가고 무엇이 바뀌는지" 비교합니다.
 
-### 0-3. ⭐ 이 문서의 코드 블록 읽는 법 — 🆕 새 파일 vs ♻️ 덮어쓰기
+### 0-3. ⭐ 이 문서의 코드 블록 읽는 법 — 태그 6종
 
-Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일 위에서** 작업합니다. 그래서 코드 블록을 만날 때마다 두 종류를 구분해야 합니다.
+Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일 위에서** 작업합니다. 게다가 "실제로 치는 코드"와 "개념 설명용 예시"가 섞여 나와요. 그래서 **오늘의 모든 코드 블록에는 바로 위에 한 줄짜리 라벨이 붙어 있습니다.**
+
+> ⭐ **규칙은 하나입니다 — 블록 위에 붙은 라벨만 보고 판단하세요.** 코드 안의 주석이나 파일명처럼 보이는 문자열은 판단 근거가 아닙니다.
 
 | 태그 | 뜻 | 어떻게 하나 |
 |---|---|---|
-| 🆕 | 그 경로에 **파일이 없다** | 폴더·파일을 만들고 코드 블록을 붙여넣기 |
-| ♻️ | 그 경로에 **파일이 이미 있다** | 파일을 열어 **기존 내용을 전부 지우고** 붙여넣기 (또는 표시된 부분만 수정) |
+| 🆕 | 그 경로에 **파일이 없다** | 폴더·파일을 만들고 블록 **전체**를 붙여넣기 |
+| ♻️ | 그 경로에 **파일이 이미 있다** | 파일을 열어 **기존 내용을 전부 지우고** 블록 전체를 붙여넣기 |
+| ✏️ | 이미 있는 파일의 **일부만** 고침 | 블록은 **발췌본**이다. 통째로 붙여넣지 말고 표시된 줄만 고치기 |
+| ⌨️ | 터미널에 **입력**하는 명령 | 그대로 실행 |
+| 📄 | 터미널·빌드가 **출력**한 결과 | 내 화면과 비교만 (입력하는 게 아님) |
+| 📖 | 개념 설명용 **읽기 전용** 예시 | 붙여넣을 곳을 찾지 말 것. 일부러 틀린 코드도 섞여 있음 |
 
-**오늘 나오는 파일 전체 목록입니다.** 헷갈리면 여기로 돌아오세요.
+💡 라벨이 없는 블록은 두 경우뿐입니다. ① 🐍 파이썬 대조 코드 — 전부 📖입니다. ② 바로 위 블록과 한 쌍(✅/❌ 대조, Before/After)인 블록 — **위 블록의 라벨이 아래 블록에도 적용**됩니다.
+
+**오늘 실제로 손대는 파일 전체 목록입니다.** 헷갈리면 여기로 돌아오세요.
 
 | 절 | 파일 | |
 |---|---|---|
-| 1-4 | `src/app/layout.tsx` | ♻️ create-next-app 기본값을 교체 |
+| 1-4 | `src/app/layout.tsx` | ♻️ create-next-app 기본값을 교체 (또는 ✏️ 4군데만 수정) |
 | 1-5 | `src/app/about/page.tsx` | 🆕 |
 | 1-7 | `src/app/chat/[id]/page.tsx` | 🆕 |
 | 2-7 | `src/app/page.tsx` | ♻️ 실험용으로 임시 교체 (4-4에서 최종본으로 또 바뀜) |
@@ -110,19 +120,18 @@ Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일
 | 3-1 | `src/app/api/health/route.ts` | 🆕 |
 | 3-1 | `src/app/api/echo/route.ts` | 🆕 |
 | 3-2 | `.env.local` | 🆕 (프로젝트 루트 = `chat-app/`) |
-| 3-3 | `src/app/about/page.tsx` | ♻️ 1-5에서 만든 것에 Server Action 폼을 추가 |
+| 3-3 | `src/app/about/page.tsx` | ♻️ 1-5 내용 + Server Action 폼을 합친 전체본으로 교체 |
 | 3-4 | `src/app/loading.tsx` | 🆕 |
 | 3-5 | `src/app/api/chat/route.ts` | 🆕 ⭐ Day 6에서 또 ♻️ 됩니다 |
-| 4-2 | `types.ts`, `hooks/`, `components/` 3개 | 🆕 (단, 손으로 안 쓰고 `cp` 명령으로 복사) |
-| 4-3 | `MessageList.tsx`, `ChatInput.tsx` | ♻️ 맨 윗줄에 `"use client"` 한 줄만 추가 |
+| 4-2 | `types.ts`, `hooks/` 1개, `components/` 3개 | 🆕 (단, 손으로 안 쓰고 `cp` 명령으로 복사) |
+| 4-2 | 복사해온 파일들의 `import` 경로 | ✏️ 상대경로 → `@/` 별칭 |
+| 4-3 | `MessageList.tsx`, `ChatInput.tsx` | ✏️ 맨 윗줄에 `"use client"` 한 줄만 추가 |
 | 4-4 | `src/components/ChatPanel.tsx` | 🆕 |
 | 4-4 | `src/app/page.tsx` | ♻️ 2-7 실험 코드를 최종본으로 교체 |
-| 4-5 | `src/components/ChatInput.tsx` | ♻️ shadcn/ui `Button`/`Input` 적용 |
+| 4-5 | `src/components/ChatInput.tsx` | ♻️ shadcn/ui `Button`/`Input` 적용 전체본 |
 | 5-② | `src/app/error.tsx` | 🆕 (추가 연습) |
 
-⚠️ **♻️ 파일을 덮어쓸 때 항상 확인할 것**: 문서의 코드 블록은 설명에 필요한 부분만 담은 **발췌본일 수 있습니다.** 특히 `layout.tsx`의 폰트 설정처럼 원래 있던 코드가 문서에 없으면, 통째로 붙여넣는 순간 사라집니다. 붙여넣기 전에 **원래 파일에 있던 `import` 문과 설정 코드가 새 코드에도 있는지** 눈으로 대조하세요.
-
-💡 파일 이름 없이 개념만 보여주는 코드 블록(예: 2-4의 `"use client"` 전염 설명, 3-4의 `<Suspense>` 예제)도 있습니다. 이건 **읽기만 하는 예시**이니 붙여넣을 곳을 찾지 마세요. 첫 줄에 `// src/...` 주석으로 경로가 적힌 것만 실제로 만드는 파일입니다.
+⚠️ **♻️로 덮어쓸 때 항상 확인할 것**: 특히 `layout.tsx`의 폰트 설정처럼 원래 있던 코드가 새 블록에 없으면, 붙여넣는 순간 사라집니다. 붙여넣기 전에 **원래 파일에 있던 `import` 문과 설정 코드가 새 코드에도 있는지** 눈으로 대조하세요. (이 문서의 ♻️ 블록은 전부 전체본으로 맞춰뒀지만, 인터넷에서 가져온 발췌본에는 이 함정이 흔합니다.)
 
 ---
 
@@ -131,6 +140,8 @@ Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일
 ### 1-1. 프로젝트 생성
 
 저장소 루트에서:
+
+**⌨️ 터미널 실행**
 
 ```bash
 cd nextjs-study
@@ -150,11 +161,15 @@ pnpm create next-app@latest chat-app
 
 한 줄로 끝내고 싶다면:
 
+**⌨️ 터미널 실행** — 위 대화형 대신 쓰는 방법 (둘 중 하나만)
+
 ```bash
 pnpm create next-app@latest chat-app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 ```
 
 ⚠️ **거의 끝에서 이런 메시지로 중단될 수 있습니다. 당황하지 마세요.**
+
+**📄 터미널 출력 예시**
 
 ```
 [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: sharp@0.34.5, unrs-resolver@1.12.2
@@ -171,13 +186,17 @@ Aborting installation.
 
 ⚠️⚠️ **`chat-app` 폴더를 지우고 다시 만들지 마세요.** 파일도 의존성도 이미 전부 자리에 있습니다. 폴더 안에서 두 줄이면 복구됩니다.
 
+**⌨️ 터미널 실행** — 위 메시지를 만났을 때만
+
 ```bash
 cd chat-app
 pnpm approve-builds sharp unrs-resolver   # 인자 없이 치면 대화형 선택 (스페이스 → 엔터)
 pnpm install                              # 스토어에 이미 있으니 재다운로드 없음, 몇 초면 끝
 ```
 
-`pnpm approve-builds`는 `pnpm-workspace.yaml`에 아래를 남깁니다. 손으로 고쳐도 됩니다.
+`pnpm approve-builds`는 `pnpm-workspace.yaml`에 아래를 남깁니다.
+
+**📄 명령이 자동으로 남기는 결과** — 직접 칠 필요 없음 (손으로 고치고 싶다면 이 형식)
 
 ```yaml
 allowBuilds:
@@ -186,6 +205,8 @@ allowBuilds:
 ```
 
 🐍 파이썬에도 sdist 빌드를 승인/차단하는 감각(`--no-binary`, `--no-build-isolation`)이 있지만, **pnpm은 기본값이 "차단"**입니다. 이유가 편의가 아니라 보안이라서 그래요.
+
+**⌨️ 터미널 실행** — 개발 서버 켜기 (오늘 내내 켜둡니다)
 
 ```bash
 cd chat-app
@@ -210,6 +231,8 @@ App Router의 규칙은 딱 하나입니다.
 @app.get("/about")       → def about()
 @app.get("/chat/{id}")   → def chat(id: str)
 ```
+
+**📖 읽기 전용** — 규칙 설명 (여기서 만드는 건 없습니다)
 
 ```
 🟨 Next.js: 파일을 "그 위치에 두는 것"이 곧 선언
@@ -242,10 +265,10 @@ App Router에는 **예약된 파일 이름**이 있습니다. 이 이름들만 �
 
 ⚠️ **이 파일은 새로 만드는 게 아닙니다.** `create-next-app`이 이미 만들어놨고, 지금 안에는 기본값(`title: "Create Next App"`, `lang="en"`, 네비게이션 없음)이 들어 있습니다.
 
-> ⭐ **아래 코드를 그대로 복사해서 기존 `src/app/layout.tsx`의 내용을 전부 지우고 붙여넣으세요.** (덮어쓰기)
+**♻️ 덮어쓰기 — `src/app/layout.tsx`** (전체본입니다. 기존 내용을 전부 지우고 붙여넣으세요)
 
 ```tsx
-// src/app/layout.tsx  ← 기존 내용을 전부 지우고 이걸 붙여넣기
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";                    // ① 추가: 클라이언트 사이드 네비게이션용
@@ -308,7 +331,9 @@ export default function RootLayout({
 2. **루트 레이아웃만 `<html>`과 `<body>`를 가집니다.** 하위 레이아웃은 `<div>`만 반환하세요.
 3. **`metadata` export = `<head>` 태그 생성.** 🐍 파이썬으로 치면 템플릿 컨텍스트에 `title`을 넘기는 것과 같지만, 타입이 붙어 있죠.
 
-**중첩 레이아웃**: `src/app/chat/layout.tsx`를 만들면 `/chat`과 그 하위 모든 페이지에만 적용됩니다. 레이아웃은 겹겹이 쌓입니다.
+**중첩 레이아웃**: `src/app/chat/layout.tsx`를 만들면 `/chat`과 그 하위 모든 페이지에만 적용됩니다. 레이아웃은 겹겹이 쌓입니다. (오늘 만들지는 않습니다 — 개념만.)
+
+**📖 읽기 전용** — 중첩 구조 개념도
 
 ```
 RootLayout
@@ -320,9 +345,10 @@ RootLayout
 
 ### 1-5. 페이지 추가 실습 — `/about`
 
-`src/app/about/page.tsx`:
+**🆕 새 파일 — `src/app/about/page.tsx`** (`about` 폴더부터 새로 만드세요)
 
 ```tsx
+// src/app/about/page.tsx
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-2xl p-6">
@@ -341,6 +367,8 @@ export default function AboutPage() {
 
 ### 1-6. `<Link>` vs `<a>` — 반드시 `<Link>`
 
+**📖 읽기 전용** — 비교용 (1-4 `layout.tsx`에 이미 `<Link>`로 넣어뒀습니다)
+
 ```tsx
 <a href="/about">소개</a>        // ❌ 전체 페이지 새로고침 (느림, 상태 날아감)
 <Link href="/about">소개</Link>  // ✅ 클라이언트 사이드 네비게이션 (빠름)
@@ -354,6 +382,8 @@ export default function AboutPage() {
 
 **만드는 법** — `chat-app/` 안에 폴더 2개(`chat`, `[id]`)를 만들고 그 안에 `page.tsx`를 새로 만듭니다. 터미널이 편하면:
 
+**⌨️ 터미널 실행** — VS Code 탐색기로 만들 거면 건너뛰어도 됩니다
+
 ```bash
 # chat-app/ 에서 (저장소 루트라면 chat-app/src/... 로)
 mkdir -p 'src/app/chat/[id]'
@@ -363,6 +393,8 @@ touch 'src/app/chat/[id]/page.tsx'
 ⚠️ 폴더 이름의 **대괄호는 오타가 아니라 문법**입니다. `[id]`라는 이름 그대로 만드세요. zsh에서는 대괄호가 와일드카드로 해석되니 위처럼 **작은따옴표로 감싸야** 합니다. VS Code 탐색기에서 만들 때는 `src/app` 위에 마우스를 올리고 새 폴더 아이콘을 눌러 `chat` → `[id]` 순서로 만들면 되고, 따옴표는 필요 없습니다.
 
 만든 파일에 아래 내용을 넣습니다.
+
+**🆕 새 파일 — `src/app/chat/[id]/page.tsx`**
 
 ```tsx
 // src/app/chat/[id]/page.tsx
@@ -384,6 +416,8 @@ export default async function ChatDetailPage({ params }: PageProps) {
 🐍 파이썬으로 치면 `def get_chat(id)` → `async def get_chat(id)`로 바뀐 것과 같습니다. 이유도 비슷해요: 스트리밍 렌더링을 위해 "params가 준비되기 전에 렌더를 시작"할 수 있게 하려는 겁니다.
 
 ### 1-8. 라우트 그룹 `(폴더명)` — URL에 안 나타나는 폴더
+
+**📖 읽기 전용** — 개념 소개. **오늘 이 구조는 만들지 않습니다** (우리 `chat-app`은 라우트 그룹 없이 갑니다)
 
 ```
 src/app/
@@ -428,6 +462,8 @@ async def user_page(user_id: int) -> str:
     return f"<h1>{user.name}</h1>"               # HTML 문자열만 브라우저로
 ```
 
+**📖 읽기 전용** — 위 파이썬과 대조용. `db`는 우리 프로젝트에 없는 가상의 객체입니다
+
 ```tsx
 // 🟨 서버 컴포넌트 — 정확히 같은 성질
 export default async function UserPage({ params }: PageProps) {
@@ -439,6 +475,8 @@ export default async function UserPage({ params }: PageProps) {
 ```
 
 클라이언트 컴포넌트는 **`<script>` 태그로 브라우저에 보내는 코드**입니다.
+
+**📖 읽기 전용** — 성질 설명용 (비슷한 걸 2-7에서 `ClientBox.tsx`로 직접 만듭니다)
 
 ```tsx
 // 🟨 클라이언트 컴포넌트 — 이 파일 전체가 브라우저로 다운로드됨
@@ -473,8 +511,10 @@ export function Counter() {
 
 가장 흔한 오해입니다.
 
+**📖 읽기 전용** — 전염 규칙 설명. ⚠️ **진짜 `ChatPanel.tsx`는 4-4에서 만듭니다. 지금 이 두 줄로 파일을 만들지 마세요.**
+
 ```tsx
-// ChatPanel.tsx
+// (개념 예시) "use client"가 붙은 파일이 import하면…
 "use client";                    // ← 여기가 경계선
 import { MessageList } from "./MessageList";   // ⚠️ MessageList도 클라이언트가 됨
 ```
@@ -485,6 +525,8 @@ import { MessageList } from "./MessageList";   // ⚠️ MessageList도 클라�
 그래서 실전 원칙은 이렇습니다.
 
 > ⭐ **`"use client"`는 트리의 최대한 아래(잎사귀 쪽)에 두어라.**
+
+**📖 읽기 전용** — 오늘 4-4에서 실제로 만들 구조의 미리보기
 
 ```
 page.tsx                 [서버]  ← DB에서 초기 메시지 로드
@@ -497,8 +539,10 @@ page.tsx                 [서버]  ← DB에서 초기 메시지 로드
 
 서버 컴포넌트가 클라이언트 컴포넌트에 props를 넘길 때, 그 값은 **서버 → 브라우저로 전송(직렬화)**됩니다. 그래서 제약이 있습니다.
 
+**📖 읽기 전용** — ❌ 줄은 **일부러 틀린 코드**입니다. 붙여넣으면 에러가 납니다
+
 ```tsx
-// page.tsx (서버 컴포넌트)
+// (개념 예시) 서버 컴포넌트가 클라이언트에 props를 넘길 때
 export default async function Page() {
   const messages = await db.getMessages();
 
@@ -518,6 +562,8 @@ export default async function Page() {
 
 "클라이언트 컴포넌트 안에 무거운 서버 컴포넌트를 넣고 싶다"면? `import` 하면 클라이언트로 전염됩니다. 하지만 **`children`으로 넘기면 서버 컴포넌트로 남습니다.**
 
+**📖 읽기 전용** — 안티패턴 (`ExpensiveServerThing`은 가상의 컴포넌트)
+
 ```tsx
 // ❌ ExpensiveServerThing이 클라이언트로 끌려감
 "use client";
@@ -528,6 +574,8 @@ export function Panel() {
 }
 ```
 
+**📖 읽기 전용** — 권장 패턴. 오늘 이 파일들을 만들지는 않습니다 (Day 7에서 쓸 일이 생깁니다)
+
 ```tsx
 // ✅ children으로 받으면, 이미 서버에서 렌더된 결과가 꽂힘
 "use client";
@@ -536,7 +584,7 @@ export function Panel({ children }: { children: React.ReactNode }) {
   return <div>{open && children}</div>;
 }
 
-// page.tsx (서버)
+// 서버 컴포넌트 쪽에서는 이렇게 씁니다
 <Panel>
   <ExpensiveServerThing />   {/* 서버에서 렌더된 채로 전달 */}
 </Panel>
@@ -546,7 +594,9 @@ export function Panel({ children }: { children: React.ReactNode }) {
 
 ### 2-7. 손으로 확인하기 — 서버/클라이언트 실행 위치 실험
 
-`src/app/page.tsx`를 잠깐 이렇게 바꿔보세요.
+여기서부터 다시 **직접 치는 코드**입니다.
+
+**♻️ 덮어쓰기 — `src/app/page.tsx`** (create-next-app 기본 화면을 지우고 교체. 실험용이라 4-4에서 최종본으로 또 바뀝니다)
 
 ```tsx
 // src/app/page.tsx  (서버 컴포넌트)
@@ -571,6 +621,8 @@ export default async function Home() {
   );
 }
 ```
+
+**🆕 새 파일 — `src/components/ClientBox.tsx`** (`components` 폴더도 여기서 처음 만듭니다. 실험용이라 나중에 지워도 됩니다)
 
 ```tsx
 // src/components/ClientBox.tsx
@@ -609,11 +661,11 @@ export function ClientBox() {
 | `window is not defined` | 서버 렌더 중 브라우저 API 접근 | `"use client"` + `useEffect` 안으로 이동 |
 
 ### ✅ 세션 2 체크
-- [ ] "서버 컴포넌트는 서버에서 한 번 실행되고 결과만 간다"를 말로 설명 가능 ⭐
-- [ ] `"use client"`가 아래로만 전염된다는 것 이해
-- [ ] 서버 컴포넌트에서 `async`/`await`로 fetch 성공
-- [ ] 터미널 로그 vs 브라우저 콘솔 로그로 실행 위치 직접 확인
-- [ ] props 직렬화 제약(함수 못 넘김) 이해
+- [x] "서버 컴포넌트는 서버에서 한 번 실행되고 결과만 간다"를 말로 설명 가능 ⭐
+- [x] `"use client"`가 아래로만 전염된다는 것 이해
+- [x] 서버 컴포넌트에서 `async`/`await`로 fetch 성공
+- [x] 터미널 로그 vs 브라우저 콘솔 로그로 실행 위치 직접 확인
+- [x] props 직렬화 제약(함수 못 넘김) 이해
 
 ---
 
@@ -622,6 +674,8 @@ export function ClientBox() {
 ### 3-1. Route Handler = FastAPI 엔드포인트
 
 `app/api/*/route.ts` 파일은 화면이 아니라 **HTTP 엔드포인트**입니다.
+
+**🆕 새 파일 — `src/app/api/health/route.ts`** (`api`, `health` 폴더부터 만드세요)
 
 ```ts
 // src/app/api/health/route.ts
@@ -645,7 +699,9 @@ export async function GET() {
 
 💡 **`Request`/`Response`는 Next.js 것이 아니라 웹 표준(Fetch API)입니다.** Day 2에서 배운 `fetch`의 반대편이라고 보면 돼요. 같은 규격이라 Node, 브라우저, Vercel Edge 어디서든 통합니다.
 
-POST 예제:
+POST도 하나 만들어 봅니다.
+
+**🆕 새 파일 — `src/app/api/echo/route.ts`**
 
 ```ts
 // src/app/api/echo/route.ts
@@ -662,6 +718,8 @@ export async function POST(req: Request) {
 
 터미널에서 테스트:
 
+**⌨️ 터미널 실행** — `pnpm dev`는 켜둔 채로, 새 터미널 탭에서 (마지막 `#` 줄은 📄 기대 출력)
+
 ```bash
 curl -X POST http://localhost:3000/api/echo \
   -H "Content-Type: application/json" \
@@ -673,13 +731,15 @@ curl -X POST http://localhost:3000/api/echo \
 
 ### 3-2. 환경 변수 — ⚠️ Day 6 전에 반드시 이해할 것
 
-`chat-app/.env.local` 파일을 만듭니다.
+**🆕 새 파일 — `chat-app/.env.local`** (`src/`가 아니라 **프로젝트 루트**입니다. 터미널 명령이 아니라 파일 내용이에요)
 
 ```bash
 # chat-app/.env.local
 ANTHROPIC_API_KEY=sk-ant-여기에실제키
 NEXT_PUBLIC_APP_NAME=Chat App
 ```
+
+💡 키는 오늘 밤(9절)에 발급받습니다. 지금은 `sk-ant-여기에실제키` 그대로 둬도 오늘 실습에는 지장 없습니다.
 
 **규칙은 딱 하나입니다.**
 
@@ -691,6 +751,8 @@ NEXT_PUBLIC_APP_NAME=Chat App
 > **`NEXT_PUBLIC_` 접두사가 붙은 것만 브라우저로 갑니다. 나머지는 서버에만 남습니다.**
 
 ⚠️⚠️ **API 키에는 절대 `NEXT_PUBLIC_`을 붙이지 마세요.** 붙이는 순간 그 키는 세상에 공개된 것과 같습니다. Day 6에서 Anthropic 키를 넣을 때 이 규칙 하나만 지키면 됩니다.
+
+**📖 읽기 전용** — ✅/❌ 대조. 아래 두 블록은 만드는 파일이 아닙니다
 
 ```ts
 // ✅ Route Handler (서버) — 안전
@@ -709,15 +771,35 @@ export function Bad() {
 
 `.gitignore` 확인 — `create-next-app`이 이미 `.env*` 를 넣어줬을 겁니다. 없다면 지금 추가하세요.
 
+**⌨️ 터미널 실행** — `chat-app/`에서
+
 ```bash
 grep -n "env" .gitignore   # .env* 가 보이면 OK
 ```
+
+**서버에서 실제로 읽어보기** — 3-1에서 만든 `/api/health`에 한 줄만 끼워 넣습니다.
+
+**✏️ 부분 수정 — `src/app/api/health/route.ts`** (`app:` 줄만 추가)
+
+```ts
+export async function GET() {
+  return Response.json({
+    status: "ok",
+    at: new Date().toISOString(),
+    app: process.env.NEXT_PUBLIC_APP_NAME,   // ← ✏️ 이 줄 추가
+  });
+}
+```
+
+⚠️ `.env.local`을 만든 뒤에는 **`pnpm dev`를 껐다 켜야** 합니다(환경변수는 서버 시작 시 로드). `/api/health`에 `"app":"Chat App"`이 보이면 성공입니다.
 
 🐍 파이썬의 `.env` + `python-dotenv`와 같지만, **차이는 "빌드 시점에 클라이언트 번들로 치환된다"**는 점입니다. 파이썬은 전부 서버에서만 도니까 이런 구분이 없었죠.
 
 ### 3-3. Server Actions — 폼과 뮤테이션
 
 Route Handler가 "REST API"라면, Server Action은 **"서버 함수를 클라이언트에서 직접 호출하는 것"**입니다.
+
+**♻️ 덮어쓰기 — `src/app/about/page.tsx`** (1-5에서 만든 파일입니다. 아래는 1-5 내용 + 폼을 합친 **전체본**이니 그대로 교체하세요)
 
 ```tsx
 // src/app/about/page.tsx
@@ -730,13 +812,24 @@ async function saveNote(formData: FormData) {
 
 export default function AboutPage() {
   return (
-    <form action={saveNote} className="mx-auto max-w-2xl space-y-2 p-6">
-      <input name="text" className="w-full rounded border px-3 py-2" />
-      <button className="rounded bg-blue-600 px-4 py-2 text-white">저장</button>
-    </form>
+    <div className="mx-auto max-w-2xl p-6">
+      {/* ⬇️ 1-5에서 만든 부분 — 그대로 유지 */}
+      <h1 className="text-xl font-semibold">소개</h1>
+      <p className="mt-2 text-sm text-gray-600">
+        7일 학습 로드맵으로 만드는 채팅 앱입니다.
+      </p>
+
+      {/* ⬇️ 여기부터가 새로 추가되는 Server Action 폼 */}
+      <form action={saveNote} className="mt-6 space-y-2">
+        <input name="text" className="w-full rounded border px-3 py-2" />
+        <button className="rounded bg-blue-600 px-4 py-2 text-white">저장</button>
+      </form>
+    </div>
   );
 }
 ```
+
+**동작 확인**: `/about`에서 아무 글자나 넣고 저장 → **브라우저가 아니라 `pnpm dev` 터미널**에 `서버에 저장: ...`이 찍히면 성공입니다.
 
 이게 왜 신기하냐면 — **`fetch`도, API 라우트도, JSON 직렬화도 직접 안 썼는데** 브라우저의 폼 제출이 서버 함수를 호출했습니다. Next.js가 그 배선을 대신 만들어준 거예요.
 
@@ -757,6 +850,8 @@ export default function AboutPage() {
 
 서버 컴포넌트가 `await`로 데이터를 기다리는 동안 사용자는 뭘 볼까요? `loading.tsx`를 만들면 자동으로 그게 보입니다.
 
+**🆕 새 파일 — `src/app/loading.tsx`**
+
 ```tsx
 // src/app/loading.tsx
 export default function Loading() {
@@ -765,6 +860,8 @@ export default function Loading() {
 ```
 
 **직접 `<Suspense>`를 쓰면 더 세밀하게 제어**할 수 있습니다. 페이지의 나머지는 즉시 보여주고 느린 부분만 나중에 채우는 거죠.
+
+**📖 읽기 전용** — 새 파일이 아닙니다. 눈으로 확인하고 싶다면 2-7의 `src/app/page.tsx`에 `SlowStats`와 `<Suspense>`만 잠깐 넣어봤다가 되돌리세요 (4-4에서 어차피 최종본으로 교체됩니다)
 
 ```tsx
 import { Suspense } from "react";
@@ -791,6 +888,8 @@ export default function Home() {
 ### 3-5. ⭐ 실습 — Day 6를 위한 스트리밍 API 껍데기
 
 여기가 오늘의 사전 준비 핵심입니다. **가짜 토큰을 한 글자씩 흘려보내는 API**를 만들어 두면, Day 6에 이 자리에 진짜 LLM만 꽂으면 됩니다.
+
+**🆕 새 파일 — `src/app/api/chat/route.ts`** ⭐ 오늘의 핵심 산출물
 
 ```ts
 // src/app/api/chat/route.ts
@@ -824,6 +923,8 @@ export async function POST(req: Request) {
 
 터미널에서 확인:
 
+**⌨️ 터미널 실행**
+
 ```bash
 curl -N -X POST http://localhost:3000/api/chat \
   -H "Content-Type: application/json" \
@@ -847,9 +948,10 @@ return StreamingResponse(gen(), media_type="text/plain")
 
 ### ✅ 세션 3 체크
 - [ ] `/api/health` GET, `/api/echo` POST 동작 확인
-- [ ] `.env.local` 값을 서버에서 읽기 성공
+- [ ] `.env.local` 값을 서버에서 읽기 성공 (`/api/health`의 `app` 필드)
 - [ ] `NEXT_PUBLIC_` 규칙 설명 가능 ⭐
-- [ ] `<Suspense>`로 느린 부분만 나중에 채우기 확인
+- [ ] `/about`의 Server Action 폼 → 터미널에 로그 확인
+- [ ] (선택) `<Suspense>`로 느린 부분만 나중에 채우기 확인
 - [ ] `/api/chat`에서 글자 단위 스트리밍 확인 (curl)
 
 ---
@@ -874,6 +976,8 @@ return StreamingResponse(gen(), media_type="text/plain")
 
 ### 4-2. 파일 복사
 
+**⌨️ 터미널 실행** — ⚠️ `chat-app/`이 아니라 **저장소 루트(`nextjs-study/`)**에서
+
 ```bash
 # 저장소 루트에서
 cp practice/day4/src/types.ts            chat-app/src/types.ts
@@ -884,7 +988,9 @@ cp practice/day4/src/components/MessageList.tsx  chat-app/src/components/
 cp practice/day4/src/components/ChatInput.tsx    chat-app/src/components/
 ```
 
-이제 import 경로를 상대경로에서 `@/` 별칭으로 바꿉니다.
+이제 복사해온 4개 파일을 열어 import 경로를 상대경로에서 `@/` 별칭으로 바꿉니다.
+
+**✏️ 부분 수정 — 복사해온 파일들의 `import` 줄** (아래는 고치는 방법을 보여주는 발췌본입니다)
 
 ```tsx
 // Before (Day 4)
@@ -900,20 +1006,23 @@ import { useAutoScroll } from "@/hooks/useAutoScroll";
 
 ### 4-3. ⭐ `"use client"` 경계 정리
 
-세 파일 맨 위 줄에 `"use client"`를 추가합니다.
+두 파일 맨 위 줄에 `"use client"`를 추가합니다.
+
+**✏️ 부분 수정 — `src/components/MessageList.tsx`, `src/components/ChatInput.tsx`**
+⚠️ 아래 블록은 **맨 앞 몇 줄만 보여주는 발췌본**입니다. 통째로 붙여넣으면 파일 내용이 날아갑니다. **`"use client";` 한 줄만 파일 최상단에 추가**하세요.
 
 ```tsx
 // src/components/MessageList.tsx
-"use client";                    // ← useAutoScroll(=useEffect/useRef) 사용
+"use client";                    // ← ✏️ 이 한 줄만 추가 (useAutoScroll = useEffect/useRef 사용)
 import type { Message } from "@/types";
-// ... 나머지 Day 4와 동일
+// ... 나머지는 Day 4에서 복사해온 그대로 둡니다
 ```
 
 ```tsx
 // src/components/ChatInput.tsx
-"use client";                    // ← useState + onChange 사용
+"use client";                    // ← ✏️ 이 한 줄만 추가 (useState + onChange 사용)
 import { useState } from "react";
-// ... 나머지 Day 4와 동일
+// ... 나머지는 Day 4에서 복사해온 그대로 둡니다
 ```
 
 `MessageItem.tsx`는? **훅도 이벤트도 없으니 서버 컴포넌트로 둘 수 있습니다.** 하지만 `MessageList`(클라이언트)가 import하므로 어차피 클라이언트가 됩니다. `"use client"`를 안 써도 되고, 명시해도 됩니다. 💡 저는 **안 쓰는 쪽**을 권합니다 — "이 컴포넌트는 상태가 없다"는 신호가 되거든요.
@@ -921,6 +1030,8 @@ import { useState } from "react";
 ### 4-4. `App.tsx` → `ChatPanel.tsx` + `page.tsx`로 분리
 
 이게 오늘 배운 모든 걸 쓰는 지점입니다.
+
+**🆕 새 파일 — `src/components/ChatPanel.tsx`** (2-4에서 개념으로만 봤던 그 파일을 이제 진짜로 만듭니다)
 
 ```tsx
 // src/components/ChatPanel.tsx   ← 상태를 가진 클라이언트 컴포넌트
@@ -1000,6 +1111,8 @@ export function ChatPanel({ initialMessages = [] }: ChatPanelProps) {
 }
 ```
 
+**♻️ 덮어쓰기 — `src/app/page.tsx`** (2-7의 실험 코드를 지우고 이 최종본으로 교체. `ClientBox.tsx`는 이제 안 쓰이니 지워도 됩니다)
+
 ```tsx
 // src/app/page.tsx   ← 서버 컴포넌트
 import { ChatPanel } from "@/components/ChatPanel";
@@ -1035,6 +1148,8 @@ export default async function Home() {
 
 Day 4에서 미뤄뒀던 이유가 여기 있습니다 — Next.js에서 설치가 훨씬 매끄럽거든요.
 
+**⌨️ 터미널 실행**
+
 ```bash
 cd chat-app
 pnpm dlx shadcn@latest init
@@ -1042,15 +1157,20 @@ pnpm dlx shadcn@latest init
 
 질문에는 기본값(Neutral 등)을 고르면 됩니다. 그다음 필요한 컴포넌트만 골라 설치:
 
+**⌨️ 터미널 실행** — `src/components/ui/`에 파일이 자동 생성됩니다 (손으로 만들지 않습니다)
+
 ```bash
 pnpm dlx shadcn@latest add button input scroll-area
 ```
 
 ⚠️ **shadcn/ui는 npm 라이브러리가 아닙니다.** `node_modules`에 들어가는 게 아니라 **`src/components/ui/` 안에 소스 코드가 복사**됩니다. 그래서 마음대로 고칠 수 있어요. 🐍 `pip install`보다는 "코드 스니펫을 프로젝트에 붙여넣기"에 가깝습니다.
 
-`ChatInput.tsx`에 적용:
+`ChatInput.tsx`에 적용합니다.
+
+**♻️ 덮어쓰기 — `src/components/ChatInput.tsx`** (4-3에서 `"use client"`만 붙였던 그 파일입니다. 아래는 **전체본**이니 기존 내용을 전부 지우고 교체하세요)
 
 ```tsx
+// src/components/ChatInput.tsx
 "use client";
 
 import { useState } from "react";
@@ -1093,6 +1213,8 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
 
 ### 4-6. 최종 검증
 
+**⌨️ 터미널 실행** — `chat-app/`에서
+
 ```bash
 pnpm lint          # 경고 0개
 pnpm build         # 프로덕션 빌드 성공 (Turbopack)
@@ -1100,7 +1222,9 @@ pnpm build         # 프로덕션 빌드 성공 (Turbopack)
 
 ⚠️ `pnpm build`가 **`pnpm dev`에서 못 잡은 에러를 잡는 경우가 많습니다.** 특히 서버/클라이언트 경계 위반은 빌드에서 드러나요. 오늘 반드시 한 번 돌려보세요.
 
-빌드 출력에서 이런 표를 보게 됩니다:
+빌드 출력에서 이런 표를 보게 됩니다.
+
+**📄 빌드 출력 예시**
 
 ```
 Route (app)                    Size     First Load JS
@@ -1130,7 +1254,10 @@ Route (app)                    Size     First Load JS
 **② `error.tsx`로 에러 화면 만들기**
 `src/app/error.tsx`를 만들고(⚠️ 반드시 `"use client"` 필요), 페이지에서 일부러 `throw new Error("테스트")`를 던져 화면을 확인하세요.
 
+**🆕 새 파일 — `src/app/error.tsx`** (추가 연습이라 안 만들어도 오늘 목표에는 지장 없습니다)
+
 ```tsx
+// src/app/error.tsx
 "use client";
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
@@ -1192,6 +1319,8 @@ Day 2에서 배운 `AbortController`를 `ChatPanel`에 붙여 "중단" 버튼을
 
 ## 8. 저장소 커밋 & 정리
 
+**⌨️ 터미널 실행**
+
 ```bash
 cd ..                              # 저장소 루트
 
@@ -1199,6 +1328,8 @@ git status                         # node_modules/, .next/, .env.local 이 안 �
 ```
 
 ⚠️ 세 가지가 반드시 무시되어야 합니다: `node_modules/`, `.next/`(빌드 산출물), `.env.local`(비밀 키). `create-next-app`이 `chat-app/.gitignore`를 만들어줬을 겁니다.
+
+**⌨️ 터미널 실행**
 
 ```bash
 git add chat-app docs/Day5.md
@@ -1229,6 +1360,8 @@ git push
 
 ### 부록 A — FastAPI ↔ Next.js 치트시트
 
+**📖 읽기 전용** — 대조표
+
 ```
 # 라우팅
 @app.get("/about")                    →  src/app/about/page.tsx
@@ -1257,6 +1390,8 @@ JSON 응답만 브라우저로                →  props는 직렬화 가능한 
 ```
 
 ### 부록 B — "서버냐 클라이언트냐" 판별 플로차트
+
+**📖 읽기 전용** — 판별용
 
 ```
 이 컴포넌트가...
