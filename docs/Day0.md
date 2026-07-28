@@ -228,13 +228,13 @@ VS Code 확장 탭(`Cmd/Ctrl + Shift + X`)에서 이름으로 검색해 설치�
 
 아래가 전부 통과하면 Day 1 준비 끝입니다.
 
-- [ ] `node -v` → `v24.x.x` 출력됨
-- [ ] `npm -v` → 버전 출력됨
-- [ ] `pnpm -v` → 버전 출력됨
-- [ ] nvm(또는 fnm/nvm-windows) 설치 및 버전 확인됨
-- [ ] `code --version` → VS Code 버전 출력됨
-- [ ] VS Code에 ESLint / Prettier / Error Lens 확장 설치됨
-- [ ] (개념) "Node=인터프리터, nvm=pyenv, pnpm=pip/uv, node_modules=자동 venv" 를 말로 설명 가능
+- [x] `node -v` → `v24.x.x` 출력됨
+- [x] `npm -v` → 버전 출력됨
+- [x] `pnpm -v` → 버전 출력됨
+- [x] nvm(또는 fnm/nvm-windows) 설치 및 버전 확인됨
+- [x] `code --version` → VS Code 버전 출력됨
+- [x] VS Code에 ESLint / Prettier / Error Lens 확장 설치됨
+- [x] (개념) "Node=인터프리터, nvm=pyenv, pnpm=pip/uv, node_modules=자동 venv" 를 말로 설명 가능
 
 ---
 
