@@ -4,6 +4,7 @@
 > **선행 조건**: Day 4 완료 (`useState`/`useEffect`/props/커스텀 훅 사용 가능, `practice/day4/`에 채팅 UI가 동작하는 상태)
 > **목표**: Next.js 16 App Router의 구조와 **서버 컴포넌트 / 클라이언트 컴포넌트** 모델을 몸에 새기고, Day 4 채팅 UI를 Next.js 위로 이사시킨다. 그리고 Day 6에 LLM이 붙을 **API 자리를 미리 파둔다.**
 > **핵심 태그**: 🐍 = 파이썬 대비 포인트 · 💡 = 팁 · ⚠️ = 함정
+> **코드 블록 태그**: 🆕 = 새로 만드는 파일 · ♻️ = 이미 있는 파일 덮어쓰기 (→ 0-3 참고)
 
 ---
 
@@ -88,6 +89,41 @@ nextjs-study/
 
 💡 `practice/day4/`는 **지우지 마세요.** 세션 4에서 두 폴더를 나란히 열어놓고 "무엇이 그대로 가고 무엇이 바뀌는지" 비교합니다.
 
+### 0-3. ⭐ 이 문서의 코드 블록 읽는 법 — 🆕 새 파일 vs ♻️ 덮어쓰기
+
+Day 1~4와 달리 오늘은 **`create-next-app`이 이미 만들어놓은 파일 위에서** 작업합니다. 그래서 코드 블록을 만날 때마다 두 종류를 구분해야 합니다.
+
+| 태그 | 뜻 | 어떻게 하나 |
+|---|---|---|
+| 🆕 | 그 경로에 **파일이 없다** | 폴더·파일을 만들고 코드 블록을 붙여넣기 |
+| ♻️ | 그 경로에 **파일이 이미 있다** | 파일을 열어 **기존 내용을 전부 지우고** 붙여넣기 (또는 표시된 부분만 수정) |
+
+**오늘 나오는 파일 전체 목록입니다.** 헷갈리면 여기로 돌아오세요.
+
+| 절 | 파일 | |
+|---|---|---|
+| 1-4 | `src/app/layout.tsx` | ♻️ create-next-app 기본값을 교체 |
+| 1-5 | `src/app/about/page.tsx` | 🆕 |
+| 1-7 | `src/app/chat/[id]/page.tsx` | 🆕 |
+| 2-7 | `src/app/page.tsx` | ♻️ 실험용으로 임시 교체 (4-4에서 최종본으로 또 바뀜) |
+| 2-7 | `src/components/ClientBox.tsx` | 🆕 (실험용, 나중에 지워도 됨) |
+| 3-1 | `src/app/api/health/route.ts` | 🆕 |
+| 3-1 | `src/app/api/echo/route.ts` | 🆕 |
+| 3-2 | `.env.local` | 🆕 (프로젝트 루트 = `chat-app/`) |
+| 3-3 | `src/app/about/page.tsx` | ♻️ 1-5에서 만든 것에 Server Action 폼을 추가 |
+| 3-4 | `src/app/loading.tsx` | 🆕 |
+| 3-5 | `src/app/api/chat/route.ts` | 🆕 ⭐ Day 6에서 또 ♻️ 됩니다 |
+| 4-2 | `types.ts`, `hooks/`, `components/` 3개 | 🆕 (단, 손으로 안 쓰고 `cp` 명령으로 복사) |
+| 4-3 | `MessageList.tsx`, `ChatInput.tsx` | ♻️ 맨 윗줄에 `"use client"` 한 줄만 추가 |
+| 4-4 | `src/components/ChatPanel.tsx` | 🆕 |
+| 4-4 | `src/app/page.tsx` | ♻️ 2-7 실험 코드를 최종본으로 교체 |
+| 4-5 | `src/components/ChatInput.tsx` | ♻️ shadcn/ui `Button`/`Input` 적용 |
+| 5-② | `src/app/error.tsx` | 🆕 (추가 연습) |
+
+⚠️ **♻️ 파일을 덮어쓸 때 항상 확인할 것**: 문서의 코드 블록은 설명에 필요한 부분만 담은 **발췌본일 수 있습니다.** 특히 `layout.tsx`의 폰트 설정처럼 원래 있던 코드가 문서에 없으면, 통째로 붙여넣는 순간 사라집니다. 붙여넣기 전에 **원래 파일에 있던 `import` 문과 설정 코드가 새 코드에도 있는지** 눈으로 대조하세요.
+
+💡 파일 이름 없이 개념만 보여주는 코드 블록(예: 2-4의 `"use client"` 전염 설명, 3-4의 `<Suspense>` 예제)도 있습니다. 이건 **읽기만 하는 예시**이니 붙여넣을 곳을 찾지 마세요. 첫 줄에 `// src/...` 주석으로 경로가 적힌 것만 실제로 만드는 파일입니다.
+
 ---
 
 ## 1. 세션 1 (오전) — 프로젝트 생성 & 파일 기반 라우팅
@@ -117,6 +153,39 @@ pnpm create next-app@latest chat-app
 ```bash
 pnpm create next-app@latest chat-app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
 ```
+
+⚠️ **거의 끝에서 이런 메시지로 중단될 수 있습니다. 당황하지 마세요.**
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: sharp@0.34.5, unrs-resolver@1.12.2
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+Aborting installation.
+  pnpm install has failed.
+```
+
+**"실패"가 아니라 "승인 대기"입니다.** 원인은 이렇습니다.
+
+1. pnpm 10부터 **의존성의 설치 스크립트(`postinstall` 등)를 기본으로 차단**합니다. 악성 패키지가 `pip install` 한 번에 코드를 실행하던 공급망 공격을 막으려는 정책이에요.
+2. `next`가 쓰는 `sharp`(이미지 최적화)와 `eslint-config-next`가 쓰는 `unrs-resolver`가 네이티브 바이너리라 이 스크립트를 갖고 있습니다. pnpm은 차단 사실을 알리며 **0이 아닌 종료 코드**로 끝납니다.
+3. `create-next-app`은 종료 코드만 보고 판정하므로 **설치가 다 끝났는데도** 실패로 오해하고 `Aborting installation.`을 찍습니다.
+
+⚠️⚠️ **`chat-app` 폴더를 지우고 다시 만들지 마세요.** 파일도 의존성도 이미 전부 자리에 있습니다. 폴더 안에서 두 줄이면 복구됩니다.
+
+```bash
+cd chat-app
+pnpm approve-builds sharp unrs-resolver   # 인자 없이 치면 대화형 선택 (스페이스 → 엔터)
+pnpm install                              # 스토어에 이미 있으니 재다운로드 없음, 몇 초면 끝
+```
+
+`pnpm approve-builds`는 `pnpm-workspace.yaml`에 아래를 남깁니다. 손으로 고쳐도 됩니다.
+
+```yaml
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+```
+
+🐍 파이썬에도 sdist 빌드를 승인/차단하는 감각(`--no-binary`, `--no-build-isolation`)이 있지만, **pnpm은 기본값이 "차단"**입니다. 이유가 편의가 아니라 보안이라서 그래요.
 
 ```bash
 cd chat-app
@@ -171,25 +240,45 @@ App Router에는 **예약된 파일 이름**이 있습니다. 이 이름들만 �
 
 `src/app/layout.tsx`를 열어보세요. 이게 **루트 레이아웃**이고, 모든 페이지를 감쌉니다.
 
+⚠️ **이 파일은 새로 만드는 게 아닙니다.** `create-next-app`이 이미 만들어놨고, 지금 안에는 기본값(`title: "Create Next App"`, `lang="en"`, 네비게이션 없음)이 들어 있습니다.
+
+> ⭐ **아래 코드를 그대로 복사해서 기존 `src/app/layout.tsx`의 내용을 전부 지우고 붙여넣으세요.** (덮어쓰기)
+
 ```tsx
-// src/app/layout.tsx
+// src/app/layout.tsx  ← 기존 내용을 전부 지우고 이걸 붙여넣기
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";                    // ① 추가: 클라이언트 사이드 네비게이션용
 import "./globals.css";
 
+// ⬇️ create-next-app이 넣어준 폰트 설정 — 건드리지 말고 그대로 둡니다
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Chat App",
-  description: "7일 학습 프로젝트",
+  title: "Chat App",                             // ② 수정: 기본값 "Create Next App"에서 변경
+  description: "7일 학습 프로젝트",               // ② 수정
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;   // ← Day 4에서 배운 children!
-}) {
+}>) {
   return (
-    <html lang="ko">
-      <body className="min-h-screen bg-white text-gray-900 antialiased">
+    <html
+      lang="ko"                                  // ③ 수정: en → ko
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="flex min-h-full flex-col bg-white text-gray-900">
+        {/* ④ 추가: 모든 페이지에 공통으로 붙을 상단 네비게이션 */}
         <header className="flex items-center gap-4 border-b px-6 py-3">
           <Link href="/" className="font-semibold">
             💬 Chat
@@ -200,12 +289,18 @@ export default function RootLayout({
             </Link>
           </nav>
         </header>
-        <main>{children}</main>
+        <main className="flex-1">{children}</main>
       </body>
     </html>
   );
 }
 ```
+
+💡 **기존 파일과 달라진 곳은 위 주석 ①~④, 딱 네 군데뿐입니다.** 통째로 붙여넣는 대신 네 군데만 손으로 고쳐도 결과는 같습니다. 손으로 고치는 쪽이 기억에 더 남으니 권합니다.
+
+⚠️ **다른 곳에서 본 예제를 붙여넣을 때 주의**: 인터넷 예제나 짧은 발췌본에는 `Geist` 폰트 설정이 없는 경우가 많습니다. 그걸 통째로 덮어쓰면 폰트 설정이 사라집니다(앱이 깨지진 않고, 기본 시스템 폰트로 돌아갑니다). **`layout.tsx`를 덮어쓸 때는 항상 `import` 문과 폰트 설정이 살아남았는지 확인**하세요.
+
+저장하면 `pnpm dev`가 즉시 반영합니다. 화면 맨 위에 `💬 Chat`과 `소개`가 보이면 성공입니다. (`소개`를 누르면 아직 404 — 그게 바로 다음 1-5에서 만드는 `/about`입니다.)
 
 여기서 알아둘 것 3가지:
 
@@ -257,6 +352,18 @@ export default function AboutPage() {
 
 `src/app/chat/[id]/page.tsx`를 만들면 `/chat/abc`, `/chat/123` 모두 여기로 옵니다.
 
+**만드는 법** — `chat-app/` 안에 폴더 2개(`chat`, `[id]`)를 만들고 그 안에 `page.tsx`를 새로 만듭니다. 터미널이 편하면:
+
+```bash
+# chat-app/ 에서 (저장소 루트라면 chat-app/src/... 로)
+mkdir -p 'src/app/chat/[id]'
+touch 'src/app/chat/[id]/page.tsx'
+```
+
+⚠️ 폴더 이름의 **대괄호는 오타가 아니라 문법**입니다. `[id]`라는 이름 그대로 만드세요. zsh에서는 대괄호가 와일드카드로 해석되니 위처럼 **작은따옴표로 감싸야** 합니다. VS Code 탐색기에서 만들 때는 `src/app` 위에 마우스를 올리고 새 폴더 아이콘을 눌러 `chat` → `[id]` 순서로 만들면 되고, 따옴표는 필요 없습니다.
+
+만든 파일에 아래 내용을 넣습니다.
+
 ```tsx
 // src/app/chat/[id]/page.tsx
 type PageProps = {
@@ -269,6 +376,8 @@ export default async function ChatDetailPage({ params }: PageProps) {
   return <div className="p-6">대화 ID: {id}</div>;
 }
 ```
+
+저장한 뒤 `http://localhost:3000/chat/abc`, `http://localhost:3000/chat/123`에 차례로 접속해 보세요. 각각 "대화 ID: abc", "대화 ID: 123"이 뜨면 성공입니다. 폴더만 만들고 `page.tsx`를 안 만들면 404가 납니다.
 
 ⚠️ **이건 Next.js 15/16의 대표적인 breaking change입니다.** 인터넷의 옛날 예제는 `params.id`를 바로 씁니다(동기). Next.js 16에서는 `params`와 `searchParams`가 **Promise**여서 `await`해야 합니다. 그리고 이렇게 하려면 컴포넌트 함수에 `async`가 붙어야 하죠 — **서버 컴포넌트라서 가능한 일**입니다(세션 2에서 다룹니다).
 
@@ -290,11 +399,11 @@ src/app/
 **소괄호로 감싼 폴더는 URL에 포함되지 않습니다.** 레이아웃을 다르게 주고 싶을 때만 씁니다. 오늘은 안 써도 되지만, "왜 폴더 이름에 괄호가 있지?" 하고 당황하지 않으려면 알아두세요.
 
 ### ✅ 세션 1 체크
-- [ ] `chat-app` 생성 후 `pnpm dev`로 화면 확인
-- [ ] `/about` 페이지 추가 → 접속 성공
-- [ ] `layout.tsx`의 `children`이 무엇인지 설명 가능
-- [ ] `<Link>`를 써야 하는 이유 설명 가능
-- [ ] Next.js 16에서 `params`가 `Promise`인 것을 확인
+- [x] `chat-app` 생성 후 `pnpm dev`로 화면 확인
+- [x] `/about` 페이지 추가 → 접속 성공
+- [x] `layout.tsx`의 `children`이 무엇인지 설명 가능
+- [x] `<Link>`를 써야 하는 이유 설명 가능
+- [x] Next.js 16에서 `params`가 `Promise`인 것을 확인
 
 ---
 
@@ -1061,6 +1170,7 @@ Day 2에서 배운 `AbortController`를 `ChatPanel`에 붙여 "중단" 버튼을
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
+| `create-next-app`이 `ERR_PNPM_IGNORED_BUILDS`로 중단 | pnpm 10+가 `sharp`/`unrs-resolver`의 빌드 스크립트를 기본 차단 | **지우지 말 것.** `pnpm approve-builds` → `pnpm install` |
 | 폴더를 만들었는데 404 | `page.tsx`가 없음 | 폴더 안에 `page.tsx` 생성 |
 | 페이지가 안 뜸 / 빈 화면 | `export default`가 아님 | 기본 내보내기로 변경 |
 | `This React hook only works in a Client Component` | 서버 컴포넌트에서 훅 사용 | 파일 맨 위 `"use client"` |
@@ -1105,6 +1215,7 @@ git push
 오늘 판 자리에 내일 진짜 LLM이 들어옵니다.
 
 1. **Vercel AI SDK v6 설치** — `ai`, `@ai-sdk/react`, `@ai-sdk/anthropic`
+   💡 설치할 때 오늘 본 `ERR_PNPM_IGNORED_BUILDS`가 또 뜰 수 있습니다. 이제 대응법을 알죠 — `pnpm approve-builds`.
 2. **`/api/chat/route.ts` 교체** — 오늘의 가짜 `ReadableStream`이 `streamText(...)` 한 줄로 바뀝니다.
 3. **`ChatPanel` 대수술** — 오늘 손으로 짠 `getReader()` 루프가 `useChat` 훅 한 줄로 사라집니다. 오늘 직접 짜봤으니 "무엇이 감춰졌는지" 알게 될 거예요.
 4. ⭐ **tool calling으로 에이전트 만들기** — Zod 스키마로 도구를 정의하고, 모델이 도구를 호출 → 결과 관찰 → 재추론하는 루프를 봅니다. Day 2의 GitHub API 호출 코드가 **도구 하나로 재등장**합니다.
