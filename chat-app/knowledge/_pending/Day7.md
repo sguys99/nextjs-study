@@ -44,22 +44,6 @@ cp ../docs/*.md knowledge/
 ls knowledge/     # Day0.md ... Day6.md, roadmap.md
 ```
 
-💡 `mkdir -p`의 `-p`는 **parents**입니다. 두 가지를 동시에 해줘요.
-
-1. **중간 경로까지 한 번에 생성** — `mkdir a/b/c`는 `a`가 없으면 에러지만, `-p`를 붙이면 `a` → `a/b` → `a/b/c` 순서로 다 만듭니다.
-2. **이미 있어도 에러를 내지 않음** — 그래서 스크립트를 몇 번을 다시 실행해도 안전합니다(idempotent).
-
-여기서 중요한 건 2번입니다. 인자가 두 개(`knowledge`, `data`)라 **`knowledge/`와 `data/` 두 폴더를 각각** 만드는 것이지 `knowledge/data`가 아니라는 점도 주의하세요.
-
-🐍 파이썬 대응:
-
-```python
-from pathlib import Path
-Path("knowledge").mkdir(parents=True, exist_ok=True)   # = mkdir -p knowledge
-```
-
-`parents=True`가 1번, `exist_ok=True`가 2번입니다. 셸의 `-p` 하나가 둘 다 커버하는 셈이죠. 오늘 쓸 `index-docs.ts`에도 같은 게 나옵니다 — `await mkdir(dir, { recursive: true })`의 `recursive: true`가 바로 이 `-p`입니다.
-
 ### 0-3. 저장소 구조 (오늘 추가분)
 
 ```
@@ -250,7 +234,7 @@ function splitLong(text: string, maxChars: number, overlap: number): string[] {
   for (const p of paragraphs) {
     if (buf.length + p.length + 2 > maxChars && buf.length > 0) {
       out.push(buf.trim());
-      buf = tailSlice(buf, overlap) + "\n\n" + p;   // ← 겹침 (⚠️ 그냥 slice 아님, 아래 참고)
+      buf = buf.slice(-overlap) + "\n\n" + p;   // ← 겹침
     } else {
       buf += (buf ? "\n\n" : "") + p;
     }
@@ -259,92 +243,7 @@ function splitLong(text: string, maxChars: number, overlap: number): string[] {
 
   return out;
 }
-
-/**
- * 문자열 뒤에서 n 코드유닛을 잘라내되, 서로게이트 페어(이모지)를 반토막 내지 않는다.
- */
-function tailSlice(text: string, n: number): string {
-  const piece = text.slice(-n);
-  const first = piece.charCodeAt(0);
-  // 첫 글자가 하위 서로게이트(\uDC00~\uDFFF)면 짝을 잃은 것 → 한 칸 버린다
-  return first >= 0xdc00 && first <= 0xdfff ? piece.slice(1) : piece;
-}
 ```
-
-### ⚠️ 여기서 JS 고유의 함정 하나 — 이모지를 반으로 자르면 임베딩이 실패한다
-
-겹침을 `buf.slice(-overlap)`로 순진하게 쓰면 이런 에러를 만납니다.
-
-```
-AI_APICallError: statusCode 400
-"Please ensure that your input is encoded in valid UTF-8 format
- and try again."
-```
-
-원인은 **문자열 인코딩**입니다.
-
-| | 문자열 내부 표현 | `s[i]` / `slice`의 단위 |
-|---|---|---|
-| 🐍 파이썬 `str` | 코드포인트 | **코드포인트** (문자 1개) |
-| **JS `string`** | **UTF-16** | **코드 유닛 (2바이트)** |
-
-BMP 밖의 문자 — 이모지 대부분 — 는 JS에서 **코드 유닛 2개(서로게이트 페어)**를 차지합니다.
-
-```js
-"🆕".length        // 2  ← 1이 아님!
-"🐍".length        // 2
-"가".length        // 1  (한글은 BMP 안이라 1)
-```
-
-그래서 `slice(-150)`이 하필 이모지 한가운데를 지나면 **짝 잃은 서로게이트(lone surrogate)**가 남습니다. 이건 **유효한 UTF-8로 인코딩할 수 없는 문자열**이고, HTTP 요청 본문으로 나가는 순간 API가 400을 냅니다.
-
-우리 학습 문서는 🐍 💡 ⚠️ 🆕 ⭐ 로 도배돼 있어서 이 함정을 거의 반드시 밟습니다. 실제로 **206청크 중 정확히 1개**가 이렇게 깨졌고, 그 하나 때문에 인덱싱 전체가 죽었습니다.
-
-**진단하는 법** — ES2024의 `isWellFormed()`가 있습니다.
-
-```ts
-"🆕".isWellFormed()           // true
-"🆕".slice(1).isWellFormed()  // false  ← 뒤쪽 반쪽만 남음
-```
-
-```ts
-// 청크 전체를 훑는 진단 스니펫
-for (const c of allChunks) {
-  if (!c.text.isWellFormed()) console.log(`BAD: ${c.id}`);
-}
-```
-
-**고치는 법 두 가지 — 둘 다 넣어두면 좋습니다.**
-
-1. **근본 원인** — 자를 때 페어를 안 깨기 (위 `tailSlice`)
-2. **안전망** — API로 나가기 직전 `toWellFormed()`로 세탁 (짝 잃은 조각을 `U+FFFD`로 치환)
-
-```ts
-// src/lib/rag/embedding.ts
-function sanitize(text: string): string {
-  return text.toWellFormed();
-}
-
-export async function embedTexts(texts: string[]): Promise<number[][]> {
-  const { embeddings } = await embedMany({
-    model: embeddingModel,
-    values: texts.map(sanitize),   // ← 안전망
-    maxRetries: 6,
-  });
-  return embeddings;
-}
-```
-
-💡 **같은 함정이 숨어 있는 다른 자리들** — 오늘 코드에서 `slice`로 문자열을 자르는 곳은 전부 후보입니다.
-
-```ts
-text: r.text.slice(0, 1000)     // tools.ts — 토큰 절약용 자르기
-{r.text.slice(0, 400)}…         // SourceList.tsx — 미리보기
-```
-
-이 둘은 임베딩 API로 안 나가서 지금은 안 터지지만, 화면에 `�`가 보이거나 나중에 다른 API로 넘길 때 문제가 됩니다. **"문자열을 고정 길이로 자른다"는 코드를 JS에서 볼 때마다 이모지를 떠올리세요.**
-
-🐍 파이썬에서 `s[:400]`을 아무 생각 없이 써도 안전했던 건 파이썬 `str`이 코드포인트 단위라서입니다. **이건 개념 차이가 아니라 언어 차이라서, 아는 만큼만 피할 수 있는 종류의 버그예요.**
 
 💡 **청킹 팁 두 가지** (이미 알고 있겠지만 코드로 확인):
 - **헤딩을 청크 텍스트에 포함**시키면 "이게 어디 얘기인지"가 임베딩에 반영됩니다. 효과가 큽니다.
@@ -414,234 +313,24 @@ main().catch((err) => {
 });
 ```
 
-### 1-5. `package.json` 스크립트 등록 & `pnpm index`
-
-방금 만든 `index-docs.ts`는 **`.ts` 파일이라 Node가 직접 실행하지 못합니다.** 실행 경로를 만들어 줍시다.
-
-#### (1) 먼저 `tsx` 설치
-
-```bash
-pnpm add -D tsx
-```
-
-`tsx` = **T**ype**S**cript e**x**ecute. Node에 TypeScript 로더를 끼워 넣어 `.ts`를 **컴파일 없이 바로** 실행해 줍니다.
-
-| | 명령 | 단계 |
-|---|---|---|
-| 🐍 파이썬 | `python scripts/index_docs.py` | 1단계 |
-| TS (tsx 없이) | `tsc && node dist/scripts/index-docs.js` | 2단계 (빌드 → 실행) |
-| TS (tsx) | `tsx src/scripts/index-docs.ts` | 1단계 ✅ |
-
-`-D`는 `--save-dev`, 즉 **devDependencies**로 설치한다는 뜻입니다. 개발/빌드 때만 쓰고 배포된 앱은 실행할 때 필요 없는 도구라서요. 🐍 `requirements.txt`와 `requirements-dev.txt`를 나누던 것, uv의 `--dev`와 같은 감각입니다.
-
-#### (2) `package.json`의 `scripts`에 등록
+`package.json`에 스크립트 추가:
 
 ```json
 {
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "index": "tsx --env-file=.env.local src/scripts/index-docs.ts",
-    "query": "tsx --env-file=.env.local src/scripts/query.ts"
+    "index": "tsx src/scripts/index-docs.ts",
+    "query": "tsx src/scripts/query.ts"
   }
 }
 ```
-
-⚠️ **`--env-file=.env.local`이 왜 필요한가** — 이게 오늘 가장 많이 걸리는 함정입니다.
-
-`.env.local`을 자동으로 읽어주는 건 **Next.js**(`next dev`/`next build`)입니다. 그런데 우리 스크립트는 `tsx`로 도는, **Next.js 바깥**의 순수 Node 프로세스예요. 아무도 안 읽어줍니다.
-
-| 실행 주체 | 읽는 파일 |
-|---|---|
-| Next.js | `.env.local` → `.env.development` → `.env` (여러 개, 우선순위대로) |
-| `import "dotenv/config"` | **`.env` 딱 하나** |
-| `node --env-file=X` | **`X` 만** (명시한 파일) |
-
-⚠️ 특히 **`import "dotenv/config"`로는 `.env.local`이 안 읽힙니다.** `.env.local`은 Next.js의 규칙이지 dotenv의 규칙이 아니거든요. dotenv는 `.env`를 찾다가 없으면 **에러 없이 조용히 넘어가서**, 나중에 API 호출 시점에 가서야 "키가 없다"고 터집니다. 원인 찾기 딱 나쁜 형태죠.
-
-그래서 Node 20.6+ 내장 플래그인 `--env-file`로 **읽을 파일을 못박는** 방식을 씁니다. 패키지도 필요 없고 파일명이 눈에 보여서 제일 명확합니다.
-
-🐍 파이썬 대응: `load_dotenv()`는 기본이 `.env`, 다른 파일은 `load_dotenv(".env.local")`처럼 명시해야 하는 것과 똑같습니다. 요는 **"자동으로 읽힌다"고 믿지 말고 어떤 파일이 읽히는지 확인하라**는 것.
-
-💡 지금 당장 확인하는 법:
-
-```bash
-node --env-file=.env.local -e 'console.log(!!process.env.VOYAGE_API_KEY)'   # true 나와야 정상
-```
-
-⚠️ 이미 `dev`/`build`/`start`/`lint`가 들어 있는 **기존 `scripts` 블록에 두 줄만 추가**하는 겁니다. 블록 전체를 저 두 줄로 갈아치우면 `pnpm dev`가 사라져요. (JSON이라 마지막 항목 뒤 쉼표 금지 — 파이썬 dict와 다른 점입니다.)
-
-`scripts`는 **긴 명령에 짧은 별칭을 붙여두는 곳**입니다. 그게 전부예요.
-
-```
-"index"  :  "tsx src/scripts/index-docs.ts"
-  ↑                    ↑
-내가 부를 이름      실제로 실행될 셸 명령
-```
-
-🐍 파이썬 대응 — Makefile 타깃이나 `pyproject.toml`의 스크립트와 같은 역할입니다.
-
-```toml
-# pyproject.toml
-[project.scripts]
-index = "myapp.scripts.index_docs:main"   # → uv run index
-```
-
-#### (3) 실행
 
 ```bash
 pnpm index
 ```
 
-**`tsx`를 전역 설치하지 않았는데 어떻게 찾을까요?** `pnpm`이 스크립트를 실행할 때 `node_modules/.bin/`을 임시로 `PATH` 앞에 끼워 넣기 때문입니다. 그래서 `pnpm index`는 실질적으로 이렇게 동작합니다.
+⚠️ `tsx`가 `@/` 별칭을 못 알아들으면 `tsconfig-paths`를 쓰거나, 스크립트 안의 import만 상대경로(`../lib/rag/chunk`)로 바꾸세요. 가장 빠른 해결은 상대경로입니다.
 
-```bash
-PATH="./node_modules/.bin:$PATH" tsx src/scripts/index-docs.ts
-```
-
-🐍 가상환경을 `activate`하면 `python`이 그 환경 걸로 잡히는 것과 정확히 같은 원리입니다. **프로젝트마다 도구 버전이 격리**되는 거죠.
-
-#### (4) `pnpm index` vs `pnpm run index` vs `npm run index`
-
-정식 형태는 `pnpm run index`인데, `pnpm`은 **`run`을 생략해도 됩니다.**
-
-| 명령 | 되나? | 비고 |
-|---|---|---|
-| `pnpm run index` | ✅ | 정식 형태, 항상 안전 |
-| `pnpm index` | ✅ | `run` 생략 — pnpm이 허용 |
-| `npm run index` | ✅ | npm은 `run` 생략 불가 |
-| `npm index` | ❌ | `Unknown command` |
-
-⚠️ 단, **pnpm 자체 명령어와 이름이 겹치면 생략이 안 됩니다.** `install`, `add`, `remove`, `update`, `list`, `link`, `publish`, `init`, `exec`, `why` 같은 이름으로 스크립트를 만들었다면 반드시 `pnpm run <이름>`으로 불러야 해요. 우리가 쓰는 `dev`/`index`/`query`는 겹치지 않아서 괜찮습니다.
-
-💡 **인자 넘기기** — 세션 2에서 `pnpm query "질문"`을 쓸 텐데, 여기서 pnpm이 편합니다.
-
-```bash
-pnpm query "제네릭이 뭐야"          # pnpm: 그냥 붙이면 됨
-npm run query -- "제네릭이 뭐야"     # npm: -- 로 경계를 명시해야 함
-```
-
-`--` 뒤의 것들이 스크립트 명령에 그대로 이어붙어 최종적으로 `tsx src/scripts/query.ts "제네릭이 뭐야"`가 되고, 이게 `query.ts`의 `process.argv.slice(2)`로 들어옵니다. 🐍 `sys.argv[1:]`과 같은 자리예요.
-
-#### (5) 예상 출력
-
-```
-📄 문서 8개 발견
-  - Day0.md: 12 청크
-  - Day1.md: 31 청크
-  ...
-✂️  총 214 청크
-🧮 임베딩 50/214
-🧮 임베딩 100/214
-...
-✅ 저장 완료: /Users/you/.../chat-app/data/vector-store.json
-   차원: 512, 청크: 214개
-```
-
-⚠️ **자주 걸리는 것 3가지**
-
-| 증상 | 원인 | 해결 |
-|---|---|---|
-| `command not found: tsx` | `pnpm add -D tsx` 안 함, 또는 `pnpm` 없이 직접 실행 | 설치 후 `pnpm index`로 실행 |
-| `Cannot find module '@/lib/rag/chunk'` | tsx가 `@/` 별칭을 해석 못 함 | 아래 참고 |
-| `LoadAPIKeyError: ... API key is missing` | `.env.local`을 아무도 안 읽음 | 스크립트에 `--env-file=.env.local` (위 (2) 참고) |
-| `429 rate limit` | 무료 티어 한도 초과 | `BATCH` 축소 + 배치 사이 대기 (아래 (6)) |
-
-⚠️ **`@/` 별칭 문제**: `tsx`는 보통 `tsconfig.json`의 `paths`를 읽어 별칭을 해석해 줍니다. 그래도 못 찾으면 스크립트 안의 import만 상대경로로 바꾸는 게 가장 빠릅니다.
-
-```ts
-import { chunkMarkdown } from "@/lib/rag/chunk";     // 안 되면
-import { chunkMarkdown } from "../lib/rag/chunk";    // 이렇게
-```
-
-#### (6) ⚠️ 429 — 무료 티어 rate limit
-
-키가 제대로 잡히면 다음 벽이 이겁니다. Voyage는 **결제수단을 등록하지 않으면 분당 3회 요청 / 분당 1만 토큰(3 RPM / 10K TPM)**으로 제한합니다.
-
-```
-❌ 인덱싱 실패: AI_RetryError ...
-   statusCode: 429
-   "You have not yet added your payment method ...
-    reduced rate limits of 3 RPM and 10K TPM"
-```
-
-`BATCH = 50`이면 요청 하나가 2만 토큰을 넘겨서 **첫 배치부터** 걸립니다.
-
-🐍 여기서 중요한 감각 하나 — **TPM이 진짜 상한입니다.** 전체 문서가 30만 토큰이면 10K TPM 아래에선 어떻게 쪼개도 최소 30분입니다. 배치 크기를 만지는 건 "429를 피하는 것"이지 "빨라지는 것"이 아니에요. 총 처리량은 계정 한도가 정합니다.
-
-**대응 세 가지:**
-
-| 방법 | 효과 | 비고 |
-|---|---|---|
-| 결제수단 등록 | 즉시 해결 | voyage-3 계열 **무료 200M 토큰은 그대로 유지**되므로 실제 과금은 거의 0 |
-| 스로틀링 | 느리지만 무료로 완주 | 아래 코드 |
-| 문서 수 줄이기 | 학습 진행엔 충분 | `knowledge/`에 3~4개만 두고 시작 |
-
-**스로틀링 코드** — `BATCH`를 줄이고 배치 사이에 쉽니다.
-
-```ts
-// src/scripts/index-docs.ts
-import { setTimeout as sleep } from "node:timers/promises";
-
-// 환경변수로 조절 — 결제수단 등록 후엔 INDEX_BATCH=50 INDEX_DELAY_MS=0
-const BATCH = Number(process.env.INDEX_BATCH ?? 4);
-const DELAY_MS = Number(process.env.INDEX_DELAY_MS ?? 20_000);   // 3 RPM ≈ 20초
-
-for (let i = 0; i < allChunks.length; i += BATCH) {
-  // ... 임베딩 ...
-  const done = Math.min(i + BATCH, allChunks.length);
-  if (DELAY_MS > 0 && done < allChunks.length) await sleep(DELAY_MS);   // ← 마지막엔 안 쉼
-}
-```
-
-```ts
-// src/lib/rag/embedding.ts — 그래도 429가 나면 백오프 재시도
-const { embeddings } = await embedMany({
-  model: embeddingModel,
-  values: texts,
-  maxRetries: 6,        // 기본값 2 → 6
-});
-```
-
-💡 `node:timers/promises`의 `setTimeout`은 **Promise를 반환하는 `sleep`**입니다. 🐍 `asyncio.sleep()`과 정확히 같은 물건이에요. 콜백 버전 `setTimeout(fn, ms)`과 이름만 같고 다른 함수라서, 보통 `as sleep`으로 이름을 바꿔 씁니다.
-
-⚠️ `await sleep(...)`을 `for` 루프 안에 그냥 쓸 수 있는 건 이게 **순차 루프**라서입니다. Day 2에서 봤듯 `.map(async ...)`으로 바꾸면 전부 동시에 출발해 버려서 스로틀링이 무의미해져요. **rate limit 대응에는 `for...of` / `for` 루프가 맞습니다.**
-
-⚠️ **인덱싱을 두 개 동시에 돌리지 마세요.** 20초씩 쉬니 "멈춘 건가?" 싶어 새 터미널에서 `pnpm index`를 또 치기 쉬운데, **rate limit은 프로세스가 아니라 계정(API 키) 단위**라 두 프로세스가 3 RPM을 나눠 쓰게 됩니다. 결과는 둘 다 429 — 하나는 재시도를 소진하고 죽고, 살아남은 쪽도 백오프 때문에 4배쯤 느려집니다.
-
-🐍 멀티프로세싱으로 API 호출을 병렬화했다가 429 맞는 것과 정확히 같은 상황입니다. **클라이언트를 아무리 정교하게 스로틀링해도 인스턴스가 늘어나면 무의미하다** — 이게 rate limit 다루기의 첫 번째 원칙이에요.
-
-돌고 있는지 확인하는 법:
-
-```bash
-pgrep -f index-docs        # PID가 나오면 실행 중 — 기다리세요
-```
-
-💡 진행률에 **남은 시간(ETA)**을 찍어두면 정신건강에 좋습니다. 20초씩 쉬면 화면이 멈춘 것처럼 보이거든요.
-
-```ts
-const eta = Math.round((elapsed / batchNo) * (totalBatches - batchNo));
-console.log(`🧮 임베딩 ${done}/${allChunks.length}  (배치 ${batchNo}/${totalBatches}, 남은 시간 ~${eta}s)`);
-```
-
-**문서 수를 줄여서 진행하는 법** (가장 빠르게 세션 2로 넘어가는 길):
-
-```bash
-cd chat-app/knowledge
-mkdir -p _pending
-mv Day0.md Day1.md Day2.md Day4.md Day7.md roadmap.md _pending/   # 3개만 남김
-ls *.md      # Day3.md Day5.md Day6.md
-```
-
-`readdir`은 하위 폴더를 파고들지 않고, `.endsWith(".md")` 필터가 `_pending` 디렉터리 이름을 걸러내므로 **스크립트는 손댈 필요가 없습니다.** 나중에 되돌릴 땐 `mv _pending/*.md .` 후 다시 `pnpm index`.
-
-🐍 세 번째 함정(`dotenv`)은 파이썬과 다른 지점이라 짚고 갑니다. **Next.js는 `.env.local`을 자동으로 읽지만, 그건 `next dev`/`next build`가 해주는 일입니다.** `tsx`로 직접 돌리는 스크립트는 Next.js 밖이라 아무도 안 읽어줘요. 그래서 `import "dotenv/config"`를 맨 위에 직접 넣습니다 — `python-dotenv`의 `load_dotenv()`를 명시적으로 부르는 것과 같습니다.
-
----
-
-🐍 여기까지 오면 파이썬으로 짜던 인덱싱 스크립트와 **구조가 완전히 같다**는 게 보일 겁니다. 다른 건 `pathlib` → `node:path`, `open()` → `readFile`, `json.dump` → `JSON.stringify`, `python x.py` → `pnpm index` 정도예요.
+🐍 파이썬으로 짜던 인덱싱 스크립트와 **구조가 완전히 같습니다.** 다른 건 `pathlib` → `node:path`, `open()` → `readFile`, `json.dump` → `JSON.stringify` 정도예요.
 
 ### ✅ 세션 1 체크
 - [ ] 임베딩 프로바이더 선택 및 키 설정
@@ -1128,10 +817,7 @@ VOYAGE_API_KEY = pa-...          (또는 OPENAI_API_KEY)
 | 점수가 전부 0.9 이상 | 정규화된 모델의 정상 분포 | 절댓값 대신 **상대 순위**를 보고 임계값 재설정 |
 | 관련 없는 질문도 결과가 나옴 | `minScore`가 낮음 | 점수 분포 확인 후 상향 |
 | 청크가 문장 중간에서 잘림 | overlap 부족 | `OVERLAP` 증가 |
-| 임베딩 API 429 | 배치 크기 과다 / 속도 제한 | `BATCH` 축소 + 배치 사이 대기, `maxRetries` 상향 |
-| 스로틀링했는데도 429 | **인덱싱을 두 개 동시 실행** (한도는 계정 단위) | `pgrep -f index-docs`로 확인 후 하나만 |
-| 임베딩 API 400 `valid UTF-8` | `slice`가 이모지(서로게이트 페어)를 반토막 냄 | `tailSlice` + `toWellFormed()` (1-3 참고) |
-| `LoadAPIKeyError: key is missing` | `tsx`는 `.env.local`을 자동으로 안 읽음 | 스크립트에 `--env-file=.env.local` (1-5 참고) |
+| 임베딩 API 429 | 배치 크기 과다 / 속도 제한 | `BATCH` 축소, 재시도 추가 |
 | 도구가 검색을 안 함 | description·시스템 프롬프트 부실 | "반드시 먼저 검색" 명시 |
 | 검색은 했는데 답변에 안 씀 | `stopWhen`이 작음 | `stepCountIs(6)` 이상 |
 | 답변이 자료에 없는 내용을 지어냄 | 프롬프트에 근거 제한 없음 | "검색 결과에 근거해서만" 명시 |
