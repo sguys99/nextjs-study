@@ -83,6 +83,35 @@ pnpm add -D tsx
 
 🐍 `tsx`는 파이썬의 `python script.py`에 해당합니다. TS를 컴파일 없이 바로 돌려줘요.
 
+#### 잠깐 — `@ai-sdk`가 뭔가요?
+
+`@`로 시작하는 앞부분은 npm의 **스코프(scope)**, 즉 네임스페이스입니다.
+
+```
+@ai-sdk / react
+└─스코프┘ └패키지┘
+```
+
+🐍 파이썬으로 치면 `ai_sdk.react` 같은 묶음 접두사예요. 파이썬엔 공식 문법이 없어서 `google-cloud-storage`, `google-cloud-bigquery`처럼 하이픈으로 흉내 내지만, npm은 이걸 언어 차원에서 지원합니다. 효과는 두 가지:
+
+- **이름 충돌 방지** — `react`는 이미 Meta가 쓰고 있죠. `@ai-sdk/react`는 완전히 다른 패키지입니다.
+- **소유권 표시** — `@ai-sdk` 스코프에 게시할 수 있는 건 Vercel 팀뿐입니다.
+
+즉 위 표의 **`ai` + `@ai-sdk/*`가 전부 한 덩어리의 "Vercel AI SDK"**입니다. 코어만 스코프 없는 `ai`인 이유는 초기에 그 이름을 선점했기 때문이고, 이후 확장 패키지들을 `@ai-sdk` 스코프로 정리한 거예요.
+
+⚠️ **`@ai-sdk/anthropic`은 Anthropic이 만든 게 아닙니다.** Vercel이 만든 "Claude를 AI SDK 인터페이스에 꽂는 어댑터"예요. Anthropic 공식 SDK는 `@anthropic-ai/sdk`(🐍 파이썬 `anthropic`에 대응)로 스코프 자체가 다릅니다.
+
+**왜 프레임워크별로 쪼개져 있나?**
+
+```
+@ai-sdk/react   ← useChat  (우리가 쓰는 것)
+@ai-sdk/vue
+@ai-sdk/svelte
+@ai-sdk/angular
+```
+
+코어 `ai`는 프레임워크에 의존하지 않는 순수 로직만 담고, "상태를 어떻게 관리하고 리렌더링을 언제 트리거할지"는 프레임워크마다 다르니 따로 뺀 구조입니다. 위 표의 "어디서 씀" 칸이 서버/클라이언트로 갈리는 것도 이 때문 — `@ai-sdk/react`만 `"use client"` 쪽에서 import 합니다.
+
 ### 1-2. ⚠️ v5 → v6 변경표 — 이걸 모르면 온종일 삽질합니다
 
 인터넷 예제와 블로그의 **절대다수가 아직 v5 기준**입니다. 이름이 바뀐 것들을 먼저 머리에 넣으세요.
@@ -119,9 +148,12 @@ Next.js 안에서 바로 하지 말고, **먼저 콘솔에서 한 번 돌려보�
 
 ```ts
 // chat-app/src/scripts/hello-ai.ts
-import "dotenv/config";
+import { config } from "dotenv";
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, streamText } from "ai";
+
+// ⚠️ dotenv는 기본적으로 `.env`만 읽는다. Next.js가 쓰는 `.env.local`은 직접 지정해야 한다.
+config({ path: ".env.local" });
 
 const model = anthropic("claude-sonnet-4-6");
 
@@ -156,6 +188,16 @@ pnpm add -D dotenv
 pnpm tsx src/scripts/hello-ai.ts
 ```
 
+⚠️ **`.env.local` 함정 — 여기서 대부분 한 번 막힙니다.**
+
+`pnpm dev`로 앱을 띄울 때는 **Next.js가** `.env.local`을 알아서 읽어줍니다. 하지만 `pnpm tsx src/scripts/hello-ai.ts`는 Next.js를 거치지 않는 **맨 Node 프로세스**라 그 규약이 적용되지 않아요. dotenv의 기본 대상은 `.env`뿐이라 `path`를 명시해야 합니다.
+
+⚠️ **dotenv는 파일이 없어도 에러를 내지 않습니다.** 그래서 증상이 "환경변수 미로드"가 아니라 한 단계 뒤인 `LoadAPIKeyError: Anthropic API key is missing`으로 나타납니다. 이 에러를 보면 키를 의심하기 전에 **로딩 경로**를 먼저 확인하세요.
+
+🐍 파이썬으로 치면 Django의 settings 로더를 통해 돌 때와 `python script.py`로 맨몸 실행할 때 설정 로딩 경로가 다른 것과 같은 상황입니다.
+
+💡 성공하면 실행 첫 줄에 `injected env (2) from .env.local` 같은 로그가 뜹니다. 이게 안 보이면 아직 못 읽은 겁니다.
+
 **포인트 3가지:**
 
 1. **`streamText`에는 `await`가 없습니다.** 호출 즉시 `result` 객체가 돌아오고, 실제 데이터는 `result.textStream`으로 흘러나옵니다. 🐍 파이썬의 async generator를 반환하는 함수와 같은 감각이에요.
@@ -171,11 +213,11 @@ pnpm tsx src/scripts/hello-ai.ts
 🐍 ML 개발자라면 이미 아는 이야기죠. 여기선 **"JS에서는 이 옵션 이름으로 건다"**만 기억하면 됩니다.
 
 ### ✅ 세션 1 체크
-- [ ] 패키지 설치 완료
-- [ ] `hello-ai.ts`로 `generateText` 성공
-- [ ] `for await`로 스트리밍 출력 확인
-- [ ] v5→v6 변경표에서 `inputSchema` / `stopWhen` / `parts` 세 개는 외움
-- [ ] `usage`로 토큰 수 확인
+- [x] 패키지 설치 완료
+- [x] `hello-ai.ts`로 `generateText` 성공
+- [x] `for await`로 스트리밍 출력 확인
+- [x] v5→v6 변경표에서 `inputSchema` / `stopWhen` / `parts` 세 개는 외움
+- [x] `usage`로 토큰 수 확인
 
 ---
 
@@ -876,6 +918,7 @@ console.log("스텝 수:", result.steps.length);
 | 도구 결과만 나오고 최종 답변이 없음 | `stopWhen` 미설정 | `stopWhen: stepCountIs(5)` |
 | 도구 호출이 무한 반복 | 종료 조건 없음 / 도구가 계속 실패 | `stopWhen` + 도구 에러를 반환값으로 |
 | 401 Unauthorized | 키 오타 / `.env.local` 미로드 | 키 확인 후 `pnpm dev` 재시작 |
+| CLI 스크립트에서 `LoadAPIKeyError: API key is missing` | `dotenv/config`는 `.env`만 읽음 | `config({ path: ".env.local" })`로 경로 명시 |
 | 키가 브라우저에 노출 | 클라이언트에서 SDK 직접 호출 | 반드시 Route Handler(서버)에서만 |
 | 스트리밍이 안 되고 한 번에 옴 | `generateText`를 씀 | `streamText` + `toUIMessageStreamResponse` |
 | 토큰 비용이 갑자기 큼 | 도구 반환값이 거대 / 히스토리 누적 | 필요 필드만 반환, 대화 길이 제한 |
