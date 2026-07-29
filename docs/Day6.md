@@ -434,36 +434,107 @@ export function MessageItem({ message }: MessageItemProps) {
 
 ### 2-6. `ChatInput`에 중단 버튼 추가
 
+어제 만든 `ChatInput`에 "스트리밍 중에는 전송 대신 중단 버튼"을 붙입니다. **파일 전체**는 이렇게 됩니다.
+
 ```tsx
-// src/components/ChatInput.tsx (변경 부분만)
+// src/components/ChatInput.tsx
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 type ChatInputProps = {
   onSend: (text: string) => void;
-  onStop?: () => void;
-  disabled?: boolean;
-  isStreaming?: boolean;
+  onStop?: () => void;      // 🆕 스트리밍 중단
+  disabled?: boolean;       // 입력/전송 잠금
+  isStreaming?: boolean;    // 🆕 true면 전송 버튼 대신 중단 버튼
 };
 
-// ... 안쪽 버튼 부분
-{isStreaming ? (
-  <Button type="button" variant="outline" onClick={onStop}>
-    중단
-  </Button>
-) : (
-  <Button type="submit" disabled={!canSend}>
-    전송
-  </Button>
-)}
+export function ChatInput({
+  onSend,
+  onStop,                   // 🆕 ⚠️ 타입에만 추가하고 여기서 빼먹기 쉽다
+  disabled = false,
+  isStreaming = false,      // 🆕
+}: ChatInputProps) {
+  const [text, setText] = useState("");
+  const canSend = text.trim() !== "" && !disabled;
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canSend) return;
+    onSend(text.trim());
+    setText("");
+  };
+
+  // ⚠️ 한글 IME 함정: 조합 중 Enter는 "글자 확정"이지 "전송"이 아니다.
+  //    keydown에서 막아야 form의 암묵적 submit까지 함께 취소된다.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && e.nativeEvent.isComposing) {
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2 border-t p-4">
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="메시지를 입력하세요"
+        className="flex-1"
+        disabled={disabled}
+      />
+
+      {/* 🆕 스트리밍 상태에 따라 버튼이 갈린다 */}
+      {isStreaming ? (
+        <Button type="button" variant="outline" onClick={onStop}>
+          중단
+        </Button>
+      ) : (
+        <Button type="submit" disabled={!canSend}>
+          전송
+        </Button>
+      )}
+    </form>
+  );
+}
 ```
 
-⚠️ **한글 IME 함정 재확인**: Day 4에서 배운 `e.nativeEvent.isComposing` 처리가 여전히 필요합니다. 엔터로 전송하는 코드가 있다면 확인하세요.
+**어제 대비 바뀐 곳은 3군데뿐입니다:**
+
+| 위치 | 변경 |
+|---|---|
+| `ChatInputProps` | `onStop?`, `isStreaming?` 추가 |
+| 함수 시그니처 | 구조분해에 `onStop`, `isStreaming = false` 추가 ⭐ **가장 자주 빠뜨리는 곳** |
+| 버튼 | `<Button type="submit">` 하나 → `isStreaming` 삼항으로 두 갈래 |
+
+⚠️ **props 타입에만 추가하고 구조분해에서 빼먹으면** 타입 에러 없이 조용히 안 됩니다. 컴포넌트 안에서 `onStop`이라는 값이 아예 존재하지 않는 상태가 되거든요.
+
+🐍 파이썬으로 치면 타입힌트와 실제 시그니처가 어긋난 상황입니다.
+
+```python
+# 타입(=props 타입)엔 있는데
+def chat_input(on_send, on_stop=None, disabled=False, is_streaming=False): ...
+# 정작 함수는 이렇게 써놓은 것
+def chat_input(on_send, disabled=False): ...
+```
+
+**설계 포인트 3가지:**
+
+1. ⚠️ **중단 버튼에 `type="button"`이 필수**입니다. HTML `<button>`의 기본값이 `type="submit"`이라 생략하면 중단 버튼이 폼을 제출해 버립니다. React가 아니라 HTML의 기본 동작이에요.
+2. **`onStop`이 옵셔널인데 `onClick={onStop}`에 그대로 넘겨도 되나?** 됩니다. `undefined`를 `onClick`에 주면 React가 핸들러를 아예 안 붙여요. 🐍 파이썬에서 `None`을 콜백 자리에 넣으면 호출 시점에 터지는 것과 다른 지점입니다.
+3. **`disabled`와 `isStreaming`은 지금 둘 다 `isBusy`로 같은 값**입니다. 그래도 prop을 나눈 건 의미가 달라서예요 — `disabled`는 "입력을 막을까", `isStreaming`은 "버튼을 어떤 모양으로 그릴까". 나중에 "스트리밍 중에도 다음 질문은 미리 타이핑" 하게 바꾸려면 `disabled`만 떼면 됩니다.
+
+⚠️ **한글 IME 함정 재확인**: Day 4에서 배운 `e.nativeEvent.isComposing` 처리가 여전히 필요합니다. 위 코드처럼 `onKeyDown`에서 `preventDefault()`하면 form의 암묵적 제출(implicit submission)까지 함께 막힙니다.
 
 ### ✅ 세션 2 체크
-- [ ] `/api/chat`이 `streamText` + `toUIMessageStreamResponse`로 교체됨
-- [ ] 토큰이 실시간 스트리밍되는 챗봇 동작 ⭐(로드맵 필수)
-- [ ] `UIMessage`와 `ModelMessage`의 차이 설명 가능 ⭐
-- [ ] `message.parts` 배열을 순회해 렌더링
-- [ ] `stop()`으로 스트리밍 중단 확인
-- [ ] `status`로 로딩 상태 표시
+- [x] `/api/chat`이 `streamText` + `toUIMessageStreamResponse`로 교체됨
+- [x] 토큰이 실시간 스트리밍되는 챗봇 동작 ⭐(로드맵 필수)
+- [x] `UIMessage`와 `ModelMessage`의 차이 설명 가능 ⭐
+- [x] `message.parts` 배열을 순회해 렌더링
+- [x] `stop()`으로 스트리밍 중단 확인
+- [x] `status`로 로딩 상태 표시
 
 ---
 

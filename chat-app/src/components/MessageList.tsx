@@ -1,15 +1,21 @@
-"use client";                    // ← ✏️ 이 한 줄만 추가 (useAutoScroll = useEffect/useRef 사용)
-import type { Message } from "@/types";
-import { MessageItem } from "./MessageItem";
+// 
+// -------------------------
+
+"use client";
+
+import type { UIMessage } from "ai";
+import { MessageItem } from "@/components/MessageItem";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 
 type MessageListProps = {
-  messages: Message[];
-  isThinking: boolean;
+  messages: UIMessage[];
+  status: string;
 };
 
-export function MessageList({ messages, isThinking }: MessageListProps) {
-  const bottomRef = useAutoScroll(messages.length + (isThinking ? 1 : 0));
+export function MessageList({ messages, status }: MessageListProps) {
+  // Day 4에서 만든 훅을 그대로 재사용. 스트리밍 중에도 따라가도록 길이 합산.
+  const totalParts = messages.reduce((sum, m) => sum + m.parts.length, 0);
+  const bottomRef = useAutoScroll(messages.length + totalParts);
 
   return (
     <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -23,9 +29,10 @@ export function MessageList({ messages, isThinking }: MessageListProps) {
         <MessageItem key={m.id} message={m} />
       ))}
 
-      {isThinking && <p className="text-sm text-gray-400">…입력 중</p>}
+      {status === "submitted" && (
+        <p className="text-sm text-gray-400">…생각 중</p>
+      )}
 
-      {/* 스크롤 목적지 앵커 */}
       <div ref={bottomRef} />
     </div>
   );
