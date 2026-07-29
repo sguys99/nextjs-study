@@ -560,7 +560,149 @@ def chat_input(on_send, disabled=False): ...
 
 ### 3-2. 도구 정의 — `tool()` + Zod
 
-Day 3 말미에 맛본 Zod가 여기서 본무대에 섭니다.
+Day 3 말미에 맛본 Zod가 여기서 본무대에 섭니다. 코드를 치기 전에 **Zod가 여기서 정확히 무슨 일을 하는지** 먼저 잡고 갑시다. 이걸 대충 넘어가면 "도구가 호출은 되는데 인자가 이상하다" 류의 버그에서 하루를 씁니다.
+
+#### 왜 하필 Zod인가 — 여기서 스키마는 3가지 일을 한다
+
+Day 3에서 Zod는 **런타임 검증기**였습니다. 도구 정의에서는 역할이 하나 더, 그것도 가장 중요한 게 붙습니다 — 스키마가 **모델에게 보내는 계약서**가 됩니다.
+
+```
+        z.object({ ... })
+              │
+  ①  JSON Schema로 변환되어 도구 목록에 실려 Claude에게 전송
+     → 모델은 이걸 읽고 "무슨 인자를 어떤 모양으로 줄지" 결정한다
+              │
+  ②  모델이 만들어 보낸 JSON 인자를 런타임 검증
+     → 모양이 다르면 execute를 실행하지 않고 막는다
+              │
+  ③  execute의 인자 타입을 컴파일 타임에 추론
+     → ({ timeZone }) 의 timeZone이 string으로 자동 타이핑
+```
+
+🐍 파이썬 `anthropic` SDK로 도구를 쓸 때를 떠올려 보세요. `input_schema`에 JSON Schema 딕셔너리를 **손으로** 적고, 모델이 준 `tool_use.input`을 다시 손으로 pydantic 모델에 넣어 검증하고, 타입힌트는 또 따로 썼죠. 같은 정보를 세 번 적는 구조입니다. Zod는 **한 번 쓴 스키마 하나**로 셋을 전부 처리합니다.
+
+⚠️ 결론: 도구 스키마는 **"검증만 통과하면 되는" 스키마가 아닙니다.** 모델이 읽는 문서이기도 해요. **필드 이름·설명·타입 선택이 곧 프롬프트**입니다.
+
+#### 도구 스키마에 실제로 쓰는 Zod 문법 — 이것만 알면 충분
+
+| Zod | 뜻 | 🐍 pydantic |
+|---|---|---|
+| `z.string()` / `z.number()` / `z.boolean()` | 기본 타입 | `str` / `float` / `bool` |
+| `z.number().int()` | 정수 | `int` |
+| `z.string().optional()` | 없어도 됨 (`required`에서 빠짐) | `str \| None = None` |
+| `z.string().default("Asia/Seoul")` | 없으면 기본값이 주입됨 | `str = "Asia/Seoul"` |
+| `z.enum(["a", "b"])` ⭐ | 닫힌 선택지 | `Literal["a", "b"]` |
+| `z.array(z.string())` | 배열 | `list[str]` |
+| `z.object({ ... })` | 중첩 객체 | 중첩 `BaseModel` |
+| `z.number().min(0).max(10)` | 범위 제약 | `Field(ge=0, le=10)` |
+| `.describe("...")` ⭐ | 필드 설명 | `Field(description="...")` |
+| `z.object({})` | 인자가 없는 도구 | 파라미터 없는 함수 |
+
+💡 도구 입력은 **평평하고 단순할수록 좋습니다.** union·재귀·깊은 중첩은 모델을 헷갈리게 하고 JSON Schema 자체도 커집니다(= 매 요청 입력 토큰).
+
+#### `.describe()`가 실제로 하는 일 — 눈으로 확인하기
+
+Zod 4에는 변환 결과를 직접 볼 수 있는 함수가 있습니다. 아무 스크립트에서나 한 번 찍어보세요.
+
+```ts
+import { z } from "zod";
+
+const schema = z.object({
+  expression: z.string().describe("계산할 수식 (예: '(12+5)*3')"),
+  precision: z.number().int().min(0).max(10).optional().describe("반올림할 소수점 자리수"),
+});
+
+console.log(JSON.stringify(z.toJSONSchema(schema), null, 2));
+```
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "expression": { "type": "string", "description": "계산할 수식 (예: '(12+5)*3')" },
+    "precision": { "type": "integer", "minimum": 0, "maximum": 10,
+                   "description": "반올림할 소수점 자리수" }
+  },
+  "required": ["expression"],
+  "additionalProperties": false
+}
+```
+
+**이 JSON이 통째로 Claude에게 전송됩니다.** `.describe()`가 없으면 모델은 `expression`이라는 이름 하나만 보고 값을 지어내야 해요. 주석이 아니라 **프롬프트의 일부**입니다.
+
+💡 도구가 이상한 인자로 호출될 때 **가장 먼저 할 일이 `z.toJSONSchema()`를 찍어보는 것**입니다. "모델이 실제로 뭘 봤는가"를 확인할 수 있는 유일한 방법이에요.
+
+#### ⚠️ `.optional()` vs `.default()` — 가장 자주 헷갈리는 지점
+
+둘 다 "필수 아님"이지만, **누가 기본값을 채우느냐**가 다릅니다.
+
+```ts
+// (A) .optional() — 모델이 안 보내면 undefined가 그대로 들어온다
+inputSchema: z.object({ timeZone: z.string().optional() }),
+execute: async ({ timeZone = "Asia/Seoul" }) => { ... },
+//                          └── JS 구조분해 기본값으로 내가 채워야 함
+//                              안 채우면 undefined가 그대로 흘러가 런타임 버그
+
+// (B) .default() — Zod가 파싱 단계에서 채워준다
+inputSchema: z.object({ timeZone: z.string().default("Asia/Seoul") }),
+execute: async ({ timeZone }) => { ... },
+//                  └── 타입이 string (string | undefined 아님). 항상 값이 있다
+```
+
+🐍 pydantic의 `tz: str | None = None`(호출부에서 `or "Asia/Seoul"` 처리) vs `tz: str = "Asia/Seoul"`의 차이와 정확히 같습니다.
+
+💡 **기본값이 정해져 있다면 `.default()`가 낫습니다.** 기본값이 스키마 한 곳에만 존재하고, `execute`에서 `undefined` 분기를 신경 쓸 필요가 없어요. 아래 `getCurrentTime`은 학습용으로 (A) 방식을 씁니다 — 두 방식 다 손에 익혀두세요.
+
+⚠️ **필수 필드를 남발하지 마세요.** `required`가 많을수록 모델이 값을 **지어낼** 확률이 올라갑니다. 정말 없으면 실행이 불가능한 것만 필수로 두세요.
+
+#### ⭐ `z.enum()` — 선택지가 정해져 있으면 무조건 이것
+
+```ts
+// ❌ 모델이 "celsius", "C", "섭씨", "Celcius" 중 아무거나 보낸다
+unit: z.string().describe("celsius 또는 fahrenheit"),
+
+// ✅ JSON Schema의 enum으로 나가서 선택지가 강제된다
+unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+```
+
+🐍 `Literal["celsius", "fahrenheit"]`입니다. **스키마로 막을 수 있는 것을 프롬프트로 부탁하지 마세요.** 도구 인자가 흔들리는 문제의 절반은 `z.string()`을 써야 할 자리가 아닌 곳에 써서 생깁니다.
+
+#### 타입 추론 — `execute`의 인자는 공짜로 타입이 붙는다
+
+```ts
+inputSchema: z.object({ username: z.string() }),
+execute: async ({ username }) => { ... },   // username: string  ← 아무것도 안 썼는데 타입이 있다
+```
+
+`tool()`은 제네릭 함수라, `inputSchema`에서 `execute` 인자의 타입을 뽑아냅니다. Day 3에서 배운 `z.infer`가 안에서 돌고 있는 거예요. 에디터에서 `username`에 마우스를 올려 `string`이 뜨는지 확인해 보세요. `{ usrname }`처럼 오타를 내면 즉시 빨간 줄이 뜹니다.
+
+⚠️ `inputSchema`를 고치면 `execute`가 곧바로 타입 에러를 냅니다. **이건 버그가 아니라 기능입니다** — 스키마와 구현이 어긋난 채로 배포되는 걸 막아줘요.
+
+#### ⚠️ JSON Schema로 변환할 수 없는 타입은 쓰면 안 된다
+
+도구 입력은 결국 **모델이 텍스트로 생성하는 JSON**입니다. JSON에 없는 개념은 스키마에 넣을 수 없어요.
+
+| 쓰면 안 되는 것 | 이유 | 대신 |
+|---|---|---|
+| `z.date()` | JSON에 날짜 타입이 없음 | `z.string().describe("ISO 8601, 예: 2026-07-29")` |
+| `z.bigint()`, `z.symbol()`, `z.map()`, `z.set()` | JSON으로 표현 불가 | `z.number()` / `z.array()` / `z.record()` |
+| `z.function()` | 직렬화 불가 | — |
+| `.transform()` | 변환 결과가 스키마에 안 드러남 | `execute` 안에서 변환 |
+| `.refine()` | 커스텀 검증은 JSON Schema에 표현 안 됨 | 아래 💡 참고 |
+
+⚠️ Zod 4는 표현 불가능한 타입을 만나면 **변환 시점에 에러를 던집니다.** 도구를 추가한 뒤 갑자기 라우트 전체가 죽으면 여기를 의심하세요.
+
+💡 `.refine()`은 **써도 되지만 모델에게는 보이지 않고**, 실행 직전 검증만 합니다. 모델이 그 제약을 알게 하려면 `.describe()`에 같은 내용을 글로도 적어야 해요.
+
+#### 검증에 실패하면 무슨 일이 일어나나
+
+모델이 스키마에 안 맞는 인자를 보내면(예: `expression`을 숫자로) → Zod가 거부 → **`execute`는 아예 실행되지 않고** 그 도구 파트가 `output-error` 상태가 됩니다. 3-4에서 이 상태를 UI에 직접 그릴 거예요.
+
+🐍 pydantic이 `ValidationError`를 던져 함수 본문 진입 자체를 막는 것과 같습니다. 그러니 **`execute` 안에서는 인자가 이미 검증됐다고 믿어도 됩니다** — `typeof x === "string"` 같은 방어 코드를 다시 쓰지 마세요.
+
+⚠️ 단, Zod가 보장하는 건 **모양(shape)**이지 **의미**가 아닙니다. 아래 `calculate`의 화이트리스트 정규식이 그 예 — `z.string()`을 통과했다는 건 "문자열이다"라는 뜻일 뿐, "안전한 수식이다"가 아닙니다. **보안 검증은 여전히 `execute` 안에서** 해야 합니다.
+
+#### 이제 코드
 
 ```ts
 // src/lib/tools.ts
@@ -646,9 +788,11 @@ export const chatTools = { getCurrentTime, calculate, getGithubUser };
 **도구 설계에서 중요한 것 4가지:**
 
 1. ⭐ **`description`은 모델을 위한 것**입니다. 코드 리뷰어용 주석처럼 쓰지 마세요. **"언제 이 도구를 써야 하는가"**를 적어야 모델이 제대로 고릅니다. 도구가 안 불리면 90%는 설명이 부실한 탓이에요.
-2. **`.describe()`로 각 필드에도 설명을 답니다.** Zod 스키마가 그대로 JSON Schema로 변환되어 모델에게 전달됩니다. 🐍 Pydantic의 `Field(description=...)`와 동일한 역할.
+2. **`.describe()`는 모든 필드에 답니다.** 위에서 본 대로 JSON Schema의 `description`이 되어 모델에게 그대로 전달됩니다. 예시 값(`(예: torvalds)`)을 하나 넣어주면 정확도가 눈에 띄게 올라가요.
 3. **반환값은 작게.** API 응답 전체를 넘기면 그게 전부 입력 토큰이 됩니다.
 4. **에러를 던지지 말고 반환하세요.** `{ error: "..." }`를 돌려주면 모델이 그걸 읽고 사과하거나 다시 시도합니다. `throw`하면 루프 전체가 죽어요.
+
+💡 위 세 도구를 보며 앞의 Zod 설명과 대조해 보세요 — `getCurrentTime`은 `.optional()` + JS 기본값, `calculate`는 스키마 통과 후 `execute` 안에서 **보안 검증**, `getGithubUser`는 `.describe()`에 **예시 값**을 넣은 케이스입니다.
 
 ### 3-3. 도구를 route에 연결
 
@@ -755,37 +899,64 @@ export function ToolCallCard({
 }
 ```
 
+`MessageItem`은 **파일 전체**가 이렇게 됩니다. 세션 2 버전(2-5)에서 바뀐 곳은 `import` 한 줄과 `map` 안의 도구 파트 분기뿐입니다.
+
 ```tsx
-// src/components/MessageItem.tsx (parts 렌더링 부분 교체)
-{message.parts.map((part, i) => {
-  if (part.type === "text") {
-    return <span key={i}>{part.text}</span>;
-  }
+// src/components/MessageItem.tsx
+import type { UIMessage } from "ai";
+import { ToolCallCard } from "@/components/ToolCallCard";   // 🆕
 
-  // "tool-calculate" 처럼 도구 이름이 타입에 붙어서 온다
-  if (part.type.startsWith("tool-")) {
-    const p = part as unknown as {
-      type: string;
-      state: string;
-      input?: unknown;
-      output?: unknown;
-      errorText?: string;
-    };
-    return (
-      <ToolCallCard
-        key={i}
-        toolName={p.type.slice("tool-".length)}
-        state={p.state}
-        input={p.input}
-        output={p.output}
-        errorText={p.errorText}
-      />
-    );
-  }
+type MessageItemProps = { message: UIMessage };
 
-  return null;
-})}
+export function MessageItem({ message }: MessageItemProps) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] space-y-2 rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
+          isUser ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-900"
+        }`}
+      >
+        {message.parts.map((part, i) => {
+          if (part.type === "text") {
+            return <span key={i}>{part.text}</span>;
+          }
+
+          // 🆕 "tool-calculate" 처럼 도구 이름이 타입에 붙어서 온다
+          if (part.type.startsWith("tool-")) {
+            const p = part as unknown as {
+              type: string;
+              state: string;
+              input?: unknown;
+              output?: unknown;
+              errorText?: string;
+            };
+            return (
+              <ToolCallCard
+                key={i}
+                toolName={p.type.slice("tool-".length)}
+                state={p.state}
+                input={p.input}
+                output={p.output}
+                errorText={p.errorText}
+              />
+            );
+          }
+
+          return null;   // reasoning·file 등 아직 안 그리는 파트
+        })}
+      </div>
+    </div>
+  );
+}
 ```
+
+| 위치 | 세션 2 대비 변경 |
+|---|---|
+| import | `ToolCallCard` 추가 |
+| `map` 안 | `part.type.startsWith("tool-")` 분기 추가 |
+| 마지막 `return null` | 주석만 수정 (`// 도구 파트는 세션 3에서 처리` → 삭제) |
 
 **도구 파트의 `state` 진행 순서:**
 
@@ -797,19 +968,155 @@ input-streaming  →  input-available  →  output-available
 
 💡 **이 4단계를 UI에서 직접 보는 것이 오늘의 하이라이트**입니다. "모델이 뭘 하고 있는지"가 눈에 보이면 에이전트가 블랙박스가 아니게 돼요.
 
-⚠️ **타입 안전성에 대해**: 위 코드에서 `as unknown as {...}`로 캐스팅했습니다. 제대로 하려면 서버에서 메시지 타입을 정의해 클라이언트와 공유합니다.
+⚠️ **위 코드의 `as unknown as {...}`는 응급 처치입니다.** 왜 필요했고 어떻게 없애는지는 바로 다음 3-5에서 다룹니다. 시간이 빠듯하면 이대로 두고 세션 4로 넘어가도 됩니다.
+
+### 3-5. ⭐ (심화) `as unknown as`를 없애기 — 타입 안전한 도구 파트
+
+Day 3에서 배운 **narrowing + 제네릭 + `z.infer`**가 한자리에 모여 실전에서 돌아가는 지점입니다. TS를 배운 보람을 느끼는 곳이니 여유가 있으면 꼭 해보세요.
+
+#### 왜 캐스팅이 필요했나 — 기본 `UIMessage`는 도구를 모른다
+
+SDK의 실제 정의를 보면 답이 나옵니다.
 
 ```ts
-// route.ts에서
-import type { InferUITools, UIMessage } from "ai";
-export type ChatUIMessage = UIMessage<never, never, InferUITools<typeof chatTools>>;
-
-// 클라이언트에서
-const { messages } = useChat<ChatUIMessage>({ ... });
-// → part.type === "tool-calculate" 로 좁히면 input/output 타입이 자동으로 추론됨
+interface UIMessage<
+  METADATA   = unknown,
+  DATA_PARTS extends UIDataTypes = UIDataTypes,
+  TOOLS      extends UITools     = UITools      // ← 기본값 = Record<string, {input: unknown, output: unknown}>
+> {
+  id: string;
+  role: "system" | "user" | "assistant";
+  metadata?: METADATA;
+  parts: UIMessagePart<DATA_PARTS, TOOLS>[];
+}
 ```
 
-💡 Day 3의 **narrowing + 제네릭**이 실전에서 쓰이는 자리입니다. 시간이 빠듯하면 캐스팅으로 넘어가고, 여유가 있으면 꼭 해보세요 — TS를 배운 보람을 느끼는 지점이에요.
+제네릭 3칸을 안 채우고 그냥 `UIMessage`라고 쓰면 `TOOLS`가 기본값으로 들어갑니다. TS 입장에서 도구 파트는 **"이름은 아무 문자열이고 input/output은 `unknown`"**이 되는 거예요. 그러니 `p.input`을 읽으려면 캐스팅밖에 방법이 없었던 겁니다.
+
+🐍 파이썬으로 치면 `dict[str, Any]`를 받아 쓰는 상황입니다. 값이야 잘 들어 있지만 타입 체커가 도와줄 게 하나도 없죠.
+
+#### 한 줄 뜯어보기
+
+```ts
+// src/app/api/chat/route.ts 에 추가
+import type { InferUITools, UIMessage } from "ai";
+import { chatTools } from "@/lib/tools";
+
+export type ChatUIMessage = UIMessage<never, never, InferUITools<typeof chatTools>>;
+//                                     ①     ②     ③        ④
+```
+
+| 자리 | 의미 |
+|---|---|
+| ① `never` (METADATA) | 커스텀 메타데이터(응답 시간·모델명 등)를 **안 쓴다**는 선언 |
+| ② `never` (DATA_PARTS) | 커스텀 데이터 파트(`type: "data-xxx"`)를 **안 쓴다**는 선언 |
+| ③ `InferUITools<...>` | 도구 뭉치에서 input/output 타입만 뽑아 재구성 |
+| ④ `typeof chatTools` | **값**에서 **타입**을 꺼내오는 연산자 ⭐ |
+
+**④ `typeof` — 타입 자리에서 쓰는 `typeof`는 완전히 다른 물건입니다.**
+
+```ts
+const chatTools = { getCurrentTime, calculate, getGithubUser };   // 값 (런타임 객체)
+
+type T = typeof chatTools;    // 타입 자리에서 쓰면 → 그 값의 타입
+// { getCurrentTime: Tool<{timeZone?: string}, {...}>, calculate: Tool<...>, ... }
+```
+
+🐍 파이썬의 `type(chatTools)`는 런타임에 `dict`를 돌려주는 **함수 호출**이지만, TS 타입 자리의 `typeof`는 **컴파일 타임 연산자**입니다. 이름만 같아요. 덕분에 타입을 손으로 적을 필요가 없습니다 — `lib/tools.ts`에 도구를 하나 추가하면 타입이 저절로 따라옵니다.
+
+**③ `InferUITools` — 타입 레벨의 dict comprehension**
+
+```ts
+type InferUITools<TOOLS> = {
+  [NAME in keyof TOOLS & string]: {
+    input:  InferToolInput<TOOLS[NAME]>;    // inputSchema(Zod)에서 추론
+    output: InferToolOutput<TOOLS[NAME]>;   // execute의 반환값에서 추론
+  }
+};
+```
+
+결과는 이렇게 됩니다.
+
+```ts
+{
+  getCurrentTime: { input: { timeZone?: string },   output: { timeZone: string; iso: string; local: string } },
+  calculate:      { input: { expression: string },  output: { error: string } | { expression: string; value: number } },
+  getGithubUser:  { input: { username: string },    output: { error: string; username: string } | { login: string; ... } },
+}
+```
+
+⭐ **손으로 적은 게 한 글자도 없습니다.** `input`은 3-2에서 쓴 Zod 스키마에서, `output`은 `execute`의 **return 문**에서 자동으로 뽑혀 나왔어요. `calculate`의 output이 유니온인 것도 정확합니다 — 화이트리스트에 걸리면 `{ error }`, 통과하면 `{ expression, value }`를 반환했으니까요.
+
+🐍 파이썬으로 치면 `{name: infer(tool) for name, tool in TOOLS.items()}`를 **타입에 대해** 한 셈입니다. 파이썬 타입힌트로는 표현할 수 없는 종류의 연산이에요.
+
+#### 그래서 뭐가 좋아지나 — 판별 유니온이 생긴다
+
+이 매핑을 받은 도구 파트 타입이 이렇게 펼쳐집니다.
+
+```ts
+| { type: "tool-getCurrentTime"; state: ...; input: { timeZone?: string }; output: ... }
+| { type: "tool-calculate";      state: ...; input: { expression: string }; output: ... }
+| { type: "tool-getGithubUser";  state: ...; input: { username: string };  output: ... }
+```
+
+Day 3의 **판별 유니온(discriminated union) narrowing**이 그대로 먹힙니다.
+
+```tsx
+// src/components/MessageItem.tsx
+import type { ChatUIMessage } from "@/app/api/chat/route";
+
+type MessageItemProps = { message: ChatUIMessage };   // UIMessage 대신 이걸로
+
+// ... map 안에서
+if (part.type === "tool-calculate") {
+  part.input.expression;      // ✅ string — 캐스팅 없이
+  part.input.expresion;       // ❌ 오타에 즉시 빨간 줄
+
+  if (part.state === "output-available") {
+    part.output;              // ✅ { error } | { expression, value } 로 좁혀짐
+  }
+  // state가 "input-streaming"인 분기에서 part.output을 읽으면 → 컴파일 에러
+}
+```
+
+⭐ **`state`로 한 번 더 좁혀진다는 게 진짜 포인트입니다.** SDK는 `state: "input-streaming"`인 경우 `output?: never`로 선언해 뒀어요. 즉 **아직 도착하지 않은 결과를 실수로 읽는 코드는 아예 컴파일되지 않습니다.** 위에서 그린 state 4단계 다이어그램이 주석이 아니라 **타입으로 강제되는** 거예요.
+
+🐍 pydantic의 discriminated union(`Field(discriminator="type")`)과 같은 발상인데, 파이썬은 런타임에 검증하고 TS는 **에디터에서 즉시** 알려준다는 차이가 있습니다.
+
+#### 배선 순서 (4단계)
+
+| 순서 | 파일 | 할 일 |
+|---|---|---|
+| 1 | `api/chat/route.ts` | `export type ChatUIMessage = ...` 추가 + 요청 본문을 `{ messages: ChatUIMessage[] }`로 |
+| 2 | `ChatPanel.tsx` | `useChat<ChatUIMessage>({ ... })` |
+| 3 | `MessageList.tsx` / `MessageItem.tsx` | props 타입 `UIMessage` → `ChatUIMessage` |
+| 4 | `MessageItem.tsx` | `as unknown as {...}` 삭제 |
+
+💡 **Route Handler에서 타입을 export해도 안전한가?** 안전합니다. `import type` / `export type`은 컴파일 시 **완전히 사라져서** 서버 코드가 클라이언트 번들에 실려 가지 않아요. 🐍 파이썬의 `if TYPE_CHECKING:` 블록과 같은 발상입니다.
+
+⚠️ 단, **값**을 import하면 진짜로 딸려 갑니다. `import { chatTools } from "@/lib/tools"`를 클라이언트 컴포넌트에서 하면 API 키를 쓰는 코드까지 브라우저로 갈 수 있어요. 반드시 `import type`으로 쓰세요.
+
+#### 💡 중간 옵션 — 캐스팅만 없애기
+
+전면 타이핑이 부담스러우면 SDK가 제공하는 **타입 가드**만 써도 됩니다.
+
+```tsx
+import { isToolUIPart, getToolName } from "ai";
+
+if (isToolUIPart(part)) {
+  return (
+    <ToolCallCard
+      key={i}
+      toolName={getToolName(part)}   // "tool-" 문자열 slice 안 해도 됨
+      state={part.state}
+      input={part.input}
+      output={"output" in part ? part.output : undefined}
+    />
+  );
+}
+```
+
+`part.type.startsWith("tool-")` + `slice("tool-".length)`라는 **문자열 조작**보다 안전하고, `ChatUIMessage`까지 안 가도 바로 적용됩니다. 🐍 `isinstance()` 체크가 타입 체커에게도 인정받는 것과 같아요 — Day 3에서 배운 **타입 가드 함수(`x is T`)**의 실물입니다.
 
 ### ✅ 세션 3 체크
 - [ ] Zod 스키마 도구 1개 이상 호출 성공 ⭐(로드맵 필수)
@@ -817,34 +1124,91 @@ const { messages } = useChat<ChatUIMessage>({ ... });
 - [ ] 도구 2개가 연속으로 호출되는 질문 성공
 - [ ] `stopWhen: stepCountIs(5)`의 역할 설명 가능
 - [ ] 도구 호출이 UI에 표시됨 (state 4단계)
+- [ ] (심화) `ChatUIMessage`로 `as unknown as` 캐스팅 제거 — `typeof` + `InferUITools`가 뭘 하는지 설명 가능
 
 ---
 
 ## 4. 세션 4 (오후) — 다듬기
 
-### 4-1. 에러 처리 — 3층으로 막는다
+### 4-0. 이 세션을 읽는 법 ⭐
 
-**① 도구 안에서**: 이미 했습니다. `throw` 대신 `{ error }` 반환.
+세션 4는 **고칠 것과 그냥 읽을 것이 섞여 있습니다.** 헷갈리지 않게 모든 코드 블록에 표기를 답니다.
 
-**② 스트림에서**: 기본적으로 에러 메시지는 클라이언트에 노출되지 않습니다(보안). 개발 중엔 보고 싶죠.
+| 표기 | 뜻 |
+|---|---|
+| 🔧 **적용** | **실제로 파일을 고치세요.** 코드 블록 첫 줄 주석이 대상 파일 경로입니다 |
+| 🧪 **실험** | 잠깐 돌려보고 **원래대로 되돌립니다.** 저장소에 남기지 않아요 |
+| 👀 **읽기** | 개념 설명용. **타이핑하지 마세요.** "이런 게 있다"만 알면 됩니다 |
 
-```ts
-return result.toUIMessageStreamResponse({
-  onError: (error) => {
-    console.error("[chat] 스트림 에러:", error);
-    // 프로덕션에서는 내부 정보를 그대로 노출하지 말 것
-    return error instanceof Error ? error.message : "알 수 없는 오류";
-  },
-});
+💡 세션 1~3에는 이 표기가 없습니다. 거기 나온 코드는 (명시적으로 "선택"이라고 적힌 3-5를 빼면) **전부 적용 대상**이었어요.
+
+**세션 4에서 실제로 손대는 파일은 3개뿐입니다:**
+
+| 파일 | 무엇을 | 절 |
+|---|---|---|
+| `src/app/api/chat/route.ts` | 에러 처리 3층 + 프롬프트 import로 교체 | 4-1, 4-2 |
+| `src/lib/prompts.ts` 🆕 | 시스템 프롬프트를 여기로 분리 | 4-2 |
+| `src/components/MessageList.tsx` | 로딩 표시 개선 (선택) | 4-5 |
+
+나머지(4-3 `ToolLoopAgent`, 4-4 점검표)는 **고치는 게 아니라 확인·학습용**입니다.
+
+### 4-1. 🔧 에러 처리 — 3층으로 막는다
+
+**왜 3층인가?** 에러가 발생하는 **시점**이 다르고, 시점마다 잡을 수 있는 방법이 다르기 때문입니다.
+
+| 층 | 언제 터지나 | 잡는 법 | 상태 |
+|---|---|---|---|
+| ① 도구 안 | `execute` 실행 중 (GitHub 404 등) | `throw` 대신 `{ error }` **반환** | ✅ 3-2에서 완료 |
+| ② 스트림 중 | **응답이 시작된 뒤** (API 키 오류, 토큰 초과) | `toUIMessageStreamResponse({ onError })` | 🔧 지금 추가 |
+| ③ 요청 처리 | 스트리밍 **시작 전** (JSON 파싱 실패, 잘못된 입력) | `try/catch` + 입력 검증 | 🔧 지금 추가 |
+
+⚠️ **②와 ③이 왜 따로 필요한지가 핵심입니다.** `streamText`에는 `await`가 없죠(1-4 포인트 1). 호출 즉시 `result`가 반환되고 `return`까지 끝난 **뒤에** 실제 토큰이 흘러나옵니다. 그러니 **`try/catch`는 스트리밍 도중의 에러를 절대 잡을 수 없어요.** 이미 함수를 빠져나간 뒤니까요.
+
+🐍 파이썬에서 제너레이터 함수를 호출하는 것만으로는 본문이 실행되지 않는 것과 같습니다. `try/catch`가 감싼 건 "제너레이터를 만드는 부분"이지 "돌리는 부분"이 아니에요.
+
+```python
+def gen():
+    raise ValueError("여기서 터짐")
+    yield 1
+
+try:
+    g = gen()          # ← 여기선 안 터진다 (streamText 호출에 해당)
+except ValueError:
+    print("못 잡음")   # ← 실행되지 않음
+for x in g:            # ← 여기서 터진다 (스트리밍에 해당) = onError의 자리
+    ...
 ```
 
-**③ 라우트 전체에서**:
+🔧 **적용** — `route.ts` **파일 전체**입니다. 3-3에서 만든 것에서 `try/catch`·검증·`onError` 세 군데가 추가됐습니다.
 
 ```ts
+// src/app/api/chat/route.ts
+import { anthropic } from "@ai-sdk/anthropic";
+import {
+  convertToModelMessages,
+  stepCountIs,
+  streamText,
+  type UIMessage,
+} from "ai";
+import { chatTools } from "@/lib/tools";
+
+export const maxDuration = 30;
+
+// ⬇️ 4-2에서 src/lib/prompts.ts로 옮깁니다. 지금은 그대로 두세요.
+const SYSTEM_PROMPT = `당신은 한국어로 답하는 유능한 조수입니다.
+
+원칙:
+- 숫자 계산이 필요하면 반드시 calculate 도구를 사용하세요. 암산하지 마세요.
+- 현재 시각이 필요하면 getCurrentTime 도구를 사용하세요. 추측하지 마세요.
+- GitHub 사용자 정보는 getGithubUser 도구로 확인하세요.
+- 도구 결과를 받은 뒤에는 반드시 사용자에게 자연스러운 문장으로 정리해 답하세요.
+- 간결하게 답하세요.`;
+
 export async function POST(req: Request) {
-  try {
+  try {                                                        // 🆕 ③
     const { messages }: { messages: UIMessage[] } = await req.json();
 
+    // 🆕 ③ 입력 검증 — 스트리밍 시작 전에 걸러낸다
     if (!Array.isArray(messages) || messages.length === 0) {
       return Response.json({ error: "messages가 필요합니다" }, { status: 400 });
     }
@@ -852,36 +1216,104 @@ export async function POST(req: Request) {
       return Response.json({ error: "대화가 너무 깁니다" }, { status: 400 });
     }
 
-    const result = streamText({ /* ... */ });
-    return result.toUIMessageStreamResponse({ onError: (e) => String(e) });
+    const result = streamText({
+      model: anthropic("claude-sonnet-4-6"),
+      system: SYSTEM_PROMPT,
+      messages: await convertToModelMessages(messages),
+      tools: chatTools,
+      stopWhen: stepCountIs(5),
+    });
+
+    // 🆕 ② 스트리밍 도중의 에러 — try/catch로는 못 잡는 영역
+    return result.toUIMessageStreamResponse({
+      onError: (error) => {
+        console.error("[chat] 스트림 에러:", error);
+        // ⚠️ 프로덕션에서는 내부 정보를 그대로 노출하지 말 것
+        return error instanceof Error ? error.message : "알 수 없는 오류";
+      },
+    });
   } catch (err) {
+    // 🆕 ③ req.json() 파싱 실패 등, 스트리밍이 시작되기 전의 에러만 여기로 온다
     console.error("[chat] 요청 처리 실패:", err);
     return Response.json({ error: "서버 오류" }, { status: 500 });
   }
 }
 ```
 
-클라이언트 쪽은 이미 `error` + `regenerate()`로 배선해 뒀습니다.
+⚠️ **`onError`의 기본 동작**: 아무것도 안 주면 AI SDK는 클라이언트에 `"An error occurred."`만 보냅니다. 내부 정보 유출을 막는 **의도된 기본값**이에요. 위처럼 덮어쓰는 건 **개발 편의**를 위한 것이니, 배포 전에는 고정 문자열로 되돌리는 걸 잊지 마세요.
 
-**의도적으로 에러 만들어보기**: `.env.local`의 키를 잠깐 망가뜨리고 메시지를 보내보세요. 빨간 배너와 "다시 시도" 버튼이 뜨면 성공입니다.
+클라이언트 쪽은 손댈 게 없습니다 — 2-4의 `ChatPanel`에서 이미 `error` + `regenerate()`로 배선해 뒀어요.
 
-### 4-2. 시스템 프롬프트 튜닝
+🧪 **실험 — 의도적으로 에러 내보기** (끝나면 원복)
 
-세션 3의 `SYSTEM_PROMPT`를 다듬어 보세요. 효과가 큰 항목들:
+| 실험 | 방법 | 어느 층이 잡나 |
+|---|---|---|
+| API 키 오류 | `.env.local`의 키 끝에 `X`를 붙이고 서버 재시작 → 메시지 전송 | ② `onError` — 빨간 배너 + "다시 시도" |
+| 잘못된 요청 | 터미널에서 `curl -X POST localhost:3000/api/chat -d '{}' -H 'Content-Type: application/json'` | ③ 검증 → `400 {"error":"messages가 필요합니다"}` |
+| 도구 실패 | "존재하지않는사용자123456의 GitHub 정보 알려줘" | ① `{ error }` 반환 → 모델이 "찾을 수 없다"고 설명 |
 
-- **도구 사용 조건을 명시** — "계산은 반드시 도구로" 같은 문장 하나로 정확도가 크게 오릅니다
-- **도구 결과 후 반드시 요약하라** — 안 그러면 결과 JSON만 던지고 끝내는 경우가 있습니다
-- **모르면 모른다고 하라** — 환각 억제
-- **답변 길이 지시** — 학습 중엔 짧은 답이 반복 실험에 유리합니다
+💡 세 실험의 **화면 반응이 전부 다릅니다.** ①은 대화가 자연스럽게 이어지고, ②는 빨간 배너, ③은 아예 요청이 거부돼요. 이 차이를 눈으로 보는 게 이 절의 목적입니다.
 
-💡 프롬프트를 코드에 흩뿌리지 말고 `src/lib/prompts.ts`로 모아두세요. Day 7에서 RAG 지시문이 추가됩니다.
+### 4-2. 🔧 시스템 프롬프트 분리 & 튜닝
 
-### 4-3. (선택) `ToolLoopAgent`로 리팩터링
+프롬프트를 라우트 파일에 박아두면 Day 7에서 RAG 지시문이 붙을 때 지저분해집니다. **먼저 파일로 빼고, 그다음 튜닝합니다.**
+
+🔧 **적용 ①** — 새 파일을 만듭니다.
+
+```ts
+// src/lib/prompts.ts  🆕
+export const SYSTEM_PROMPT = `당신은 한국어로 답하는 유능한 조수입니다.
+
+원칙:
+- 숫자 계산이 필요하면 반드시 calculate 도구를 사용하세요. 암산하지 마세요.
+- 현재 시각이 필요하면 getCurrentTime 도구를 사용하세요. 추측하지 마세요.
+- GitHub 사용자 정보는 getGithubUser 도구로 확인하세요.
+- 도구 결과를 받은 뒤에는 반드시 사용자에게 자연스러운 문장으로 정리해 답하세요.
+- 모르는 것은 모른다고 답하세요. 지어내지 마세요.
+- 답변은 3문장 이내로 간결하게 하세요.`;
+```
+
+🔧 **적용 ②** — `route.ts`에서 **두 줄만** 바꿉니다.
+
+```ts
+// src/app/api/chat/route.ts
+import { chatTools } from "@/lib/tools";
+import { SYSTEM_PROMPT } from "@/lib/prompts";   // 🆕 추가
+
+// const SYSTEM_PROMPT = `...`;                  // ❌ 이 상수 정의 블록은 삭제
+```
+
+`streamText`의 `system: SYSTEM_PROMPT`는 **그대로 둡니다.** 이름이 같으니 손댈 게 없어요.
+
+🐍 파이썬으로 치면 `settings.py`에 상수를 모으는 것과 똑같습니다. `export const`는 `SYSTEM_PROMPT = "..."`를 모듈 최상단에 두는 것에 해당해요.
+
+#### 이제 튜닝 — 문장 하나가 동작을 바꾼다
+
+🧪 **실험** — 위 프롬프트에서 한 줄씩 지워보고 질문을 던져보세요.
+
+| 지운 줄 | 던질 질문 | 관찰되는 변화 |
+|---|---|---|
+| `숫자 계산이 필요하면 반드시 calculate…` | "1234 × 5678은?" | 도구를 안 부르고 **암산으로 틀린 답**을 낼 확률이 오름 |
+| `도구 결과를 받은 뒤에는 반드시…` | "지금 몇 시야?" | 도구 카드만 뜨고 **최종 문장이 없거나** JSON을 그대로 읊음 |
+| `모르는 것은 모른다고…` | "2030년 한국 대통령이 누구야?" | 자신 있게 **지어냄** |
+| `3문장 이내로 간결하게` | 아무 질문 | 답이 길어져 실험 1회당 대기 시간·토큰이 늘어남 |
+
+⭐ **도구가 안 불리는 문제의 해법은 두 군데뿐입니다** — 시스템 프롬프트의 사용 조건, 그리고 3-2의 도구 `description`. 코드를 고칠 일이 아니에요.
+
+💡 **왜 "간결하게"가 학습에 중요한가**: 답이 짧으면 실험 사이클이 빨라지고 출력 토큰(=비용)이 줄어듭니다. 오늘처럼 같은 질문을 수십 번 던지는 날엔 체감이 커요.
+
+⚠️ 실험이 끝나면 **원래 프롬프트로 되돌려 두세요.** Day 7이 이 파일을 이어받습니다.
+
+### 4-3. 👀 `ToolLoopAgent` — 읽고 넘어가는 절
+
+⚠️ **결론부터: 오늘 `route.ts`는 `streamText` 그대로 둡니다.** 아래 코드는 "v6에 이런 것도 있다"를 알아두는 용도예요. **적용하지 마세요.** 굳이 손을 대고 싶으면 아래 🧪 스크립트만 따로 돌려보면 됩니다.
 
 v6는 "모델 + 도구 + 루프 설정"을 **재사용 가능한 객체**로 묶는 방법을 제공합니다.
 
+👀 **읽기**
+
 ```ts
-// src/lib/agent.ts
+// src/lib/agent.ts  ← 만들지 않아도 됩니다
 import { anthropic } from "@ai-sdk/anthropic";
 import { ToolLoopAgent, stepCountIs } from "ai";
 import { chatTools } from "@/lib/tools";
@@ -895,35 +1327,97 @@ export const chatAgent = new ToolLoopAgent({
 });
 ```
 
-CLI 스크립트에서 바로 써볼 수 있습니다.
+지금 쓰는 `streamText` 호출과 **인자가 사실상 같습니다.** 차이는 "매 요청마다 인자를 늘어놓느냐 / 한 번 만들어 재사용하느냐"뿐이에요.
+
+| | `streamText` (오늘 방식) | `ToolLoopAgent` |
+|---|---|---|
+| 설정 위치 | 호출할 때마다 인자로 | 객체 생성 시 한 번 |
+| system | `system:` | `instructions:` ⚠️ |
+| 실행 | `streamText({...})` | `agent.generate()` / `agent.stream()` |
+| 유리한 상황 | 요청마다 도구·프롬프트가 달라질 때 | 같은 설정을 여러 곳에서 재사용, 에이전트 여러 개 조합 |
+
+🐍 파이썬으로 치면 `requests.post(url, headers=..., auth=...)`를 매번 쓰는 것과 `session = requests.Session()`에 설정을 담아 재사용하는 것의 차이입니다.
+
+🧪 **실험 (선택)** — 정 궁금하면 CLI로만 맛보세요. 앱은 건드리지 않습니다.
 
 ```ts
 // src/scripts/agent-test.ts
-import "dotenv/config";
-import { chatAgent } from "@/lib/agent";
+import { config } from "dotenv";
+import { anthropic } from "@ai-sdk/anthropic";
+import { ToolLoopAgent, stepCountIs } from "ai";
+import { chatTools } from "@/lib/tools";
+
+config({ path: ".env.local" });   // ⚠️ 1-4의 함정 — `.env`가 아니라 `.env.local`
+
+const chatAgent = new ToolLoopAgent({
+  model: anthropic("claude-sonnet-4-6"),
+  instructions: "당신은 한국어로 간결하게 답하는 조수입니다.",
+  tools: chatTools,
+  stopWhen: stepCountIs(5),
+});
 
 const result = await chatAgent.generate({
   prompt: "torvalds의 팔로워 수를 조회하고, 그 절반이 얼마인지 알려줘.",
 });
 console.log(result.text);
-console.log("스텝 수:", result.steps.length);
+console.log("스텝 수:", result.steps.length);   // ⭐ 2가 나오면 도구 2개가 연쇄된 것
 ```
 
-💡 **오늘은 `streamText` 방식을 그대로 두는 것을 권합니다.** 루프가 눈에 보이는 편이 학습에 낫고, Day 7의 RAG 도구도 같은 자리에 붙습니다. `ToolLoopAgent`는 "여러 에이전트를 만들어 조합할 때" 진가가 나와요. 관심 있으면 AI SDK 문서의 Agents 섹션을 보세요.
+```bash
+pnpm tsx src/scripts/agent-test.ts
+```
 
-### 4-4. 안전장치 점검 (⚠️ 지갑 보호)
+💡 **`steps.length`가 이 실험의 알맹이입니다.** 3-3의 세 번째 테스트 질문(`getGithubUser` → `calculate`)이 실제로 몇 번 루프를 돌았는지 **숫자로** 확인할 수 있어요. UI의 도구 카드로 보던 걸 콘솔에서 세는 셈입니다.
 
-- [ ] `stopWhen: stepCountIs(5)` 설정됨
-- [ ] 대화 길이 상한(예: 50개) 검증
-- [ ] 도구가 반환하는 데이터 크기가 작음
-- [ ] `maxDuration` 설정됨
-- [ ] 도구 안에서 무한 재귀/무한 fetch가 없음
+💡 **왜 오늘 안 바꾸나**: 루프가 눈에 보이는 편이 학습에 낫고, Day 7의 RAG 도구도 지금의 `tools: chatTools` 자리에 그대로 붙습니다. `ToolLoopAgent`는 에이전트를 여러 개 만들어 조합할 때 진가가 나와요.
 
-### 4-5. (선택) 로딩 UI 다듬기
+### 4-4. 👀 안전장치 점검 (⚠️ 지갑 보호)
 
-`status === "submitted"`(요청 보냄, 아직 첫 토큰 전)와 `"streaming"`(토큰 도착 중)을 구분해서 표시하면 체감 반응성이 좋아집니다. 점 3개가 통통 튀는 애니메이션 정도면 충분해요.
+**고치는 절이 아니라 확인하는 절입니다.** 지금까지 친 코드에 이미 다 들어 있어요. 파일을 열어 눈으로 확인하고 체크하세요.
+
+| 안전장치 | 어디에 있나 | 없으면 무슨 일이 |
+|---|---|---|
+| `stopWhen: stepCountIs(5)` | `route.ts`의 `streamText` | 모델이 도구를 **무한 호출** — 요청 하나로 요금 폭주 |
+| `messages.length > 50` 검증 | `route.ts`의 `try` 블록 | 히스토리 전체가 매 요청 입력 토큰 (1-5) |
+| 도구 반환값 크기 | `lib/tools.ts`의 `getGithubUser` — 필드 6개만 선별 | API 응답 전체(수십 KB)가 **다음 요청의 입력 토큰**이 됨 |
+| `maxDuration = 30` | `route.ts` 최상단 | 함수가 매달린 채 실행 시간 과금 |
+| 도구 안 무한 재귀/fetch | `lib/tools.ts`의 각 `execute` | 서버가 멈추고, 외부 API에서 차단당함 |
+
+🧪 **실측해보기** — 실제로 토큰이 얼마나 나가는지 숫자로 확인하려면 `streamText`에 콜백을 하나 붙입니다. 확인이 끝나면 지우세요.
+
+```ts
+// src/app/api/chat/route.ts 의 streamText 안에 임시로 추가
+const result = streamText({
+  // ... 기존 옵션 그대로 ...
+  onFinish: ({ usage, steps }) => {
+    console.log(`[chat] 스텝 ${steps.length}회, 토큰`, usage);
+  },
+});
+```
+
+터미널에 이런 게 찍힙니다.
+
+```
+[chat] 스텝 2회, 토큰 { inputTokens: 1893, outputTokens: 142, totalTokens: 2035 }
+```
+
+⭐ **대화를 이어가며 같은 로그를 계속 보세요.** `outputTokens`는 그대로인데 `inputTokens`만 계속 불어납니다 — 1-5에서 말한 "매 요청마다 전체 히스토리를 다시 보낸다"의 실물이에요. 도구 결과도 히스토리에 쌓이니, **도구 반환값을 작게 유지하라**는 3-2의 조언이 왜 나왔는지 여기서 체감됩니다.
+
+### 4-5. 🔧 (선택) 로딩 UI 다듬기
+
+`status === "submitted"`(요청은 보냈는데 첫 토큰이 아직)와 `"streaming"`(토큰 도착 중)은 사용자 입장에서 체감이 완전히 다릅니다. 전자를 좀 더 살아 있게 표시해 봅시다.
+
+🔧 **적용** — 2-5에서 만든 `MessageList.tsx`의 **"…생각 중" 한 줄만** 교체합니다.
 
 ```tsx
+// src/components/MessageList.tsx 의 이 부분을
+{status === "submitted" && (
+  <p className="text-sm text-gray-400">…생각 중</p>
+)}
+```
+
+```tsx
+// ⬇️ 이렇게 바꿉니다 (점 3개가 시차를 두고 통통 튐)
 {status === "submitted" && (
   <div className="flex gap-1 px-1">
     {[0, 150, 300].map((d) => (
@@ -937,10 +1431,19 @@ console.log("스텝 수:", result.steps.length);
 )}
 ```
 
+파일의 나머지는 그대로입니다. `import` 추가도 없어요.
+
+💡 **`[0, 150, 300].map(...)`을 쓴 이유**: `<span>`을 세 번 복사해 붙이는 대신 배열을 순회해 만듭니다. Day 4의 리스트 렌더링이 "데이터 목록"이 아니라 **"반복되는 UI"**에도 쓰이는 예예요. 🐍 파이썬의 리스트 컴프리헨션과 같은 감각입니다.
+
+⚠️ `animationDelay`는 Tailwind 클래스로 표현하기 번거로워서 `style` prop을 씁니다. **CSS는 최소화하되, 이런 동적 값은 인라인이 정답**입니다. 🐍 JS의 `style` 객체는 `animation-delay`가 아니라 **`animationDelay`(camelCase)** 라는 점에 주의하세요.
+
 ### ✅ 세션 4 체크
-- [ ] 에러 케이스 1개 처리 ⭐(로드맵 필수)
-- [ ] 시스템 프롬프트를 별도 파일로 분리하고 튜닝
-- [ ] 안전장치 5개 점검 완료
+- [ ] `route.ts`에 `try/catch` + 입력 검증 + `onError` 3층이 들어감 ⭐(로드맵 필수)
+- [ ] 🧪 에러 실험 3종의 화면 반응 차이를 확인 (①대화 계속 / ②빨간 배너 / ③400)
+- [ ] `src/lib/prompts.ts`로 프롬프트 분리 + `route.ts`에서 import
+- [ ] 프롬프트 한 줄을 지웠을 때 동작이 바뀌는 것을 관찰
+- [ ] 4-4 안전장치 5개를 **파일에서 눈으로** 확인
+- [ ] (선택) `onFinish` 로그로 `inputTokens`가 대화마다 누적되는 것 확인
 - [ ] `pnpm build` 성공
 
 ---
@@ -986,6 +1489,10 @@ console.log("스텝 수:", result.steps.length);
 | `message.content`가 undefined | v6는 `parts` 배열 | `message.parts.map(...)` |
 | `useChat`의 `input`/`handleSubmit`이 없음 | v6에서 제거됨 | `useState` + `sendMessage({ text })` |
 | 도구가 절대 호출 안 됨 | `description`이 부실 | "언제 쓰는지"를 설명에 명시 |
+| 도구 인자 값이 매번 제각각 | 닫힌 선택지에 `z.string()`을 씀 | `z.enum([...])`로 강제 |
+| `execute` 안에서 값이 `undefined` | `.optional()`인데 기본값을 안 채움 | 구조분해 기본값 또는 `.default()` |
+| 도구 추가 후 라우트 전체가 죽음 | `z.date()` 등 JSON Schema 변환 불가 타입 | `z.string()` + `.describe()`로 형식 명시 |
+| 모델이 제약을 무시함 | `.refine()`은 모델에게 안 보임 | `.describe()`에도 제약을 글로 명시 |
 | 도구 결과만 나오고 최종 답변이 없음 | `stopWhen` 미설정 | `stopWhen: stepCountIs(5)` |
 | 도구 호출이 무한 반복 | 종료 조건 없음 / 도구가 계속 실패 | `stopWhen` + 도구 에러를 반환값으로 |
 | 401 Unauthorized | 키 오타 / `.env.local` 미로드 | 키 확인 후 `pnpm dev` 재시작 |
@@ -1049,6 +1556,11 @@ messages=[{"role":"user","content":...}] →  messages: await convertToModelMess
 tools=[{"name","description","input_schema"}]  →  tools: { name: tool({ description, inputSchema }) }
 pydantic BaseModel → input_schema        →  zod z.object({...})  (자동 JSON Schema 변환)
 Field(description="...")                 →  z.string().describe("...")
+Literal["a", "b"]                        →  z.enum(["a", "b"])
+str | None = None                        →  z.string().optional()
+str = "Asia/Seoul"                       →  z.string().default("Asia/Seoul")
+Field(ge=0, le=10)                       →  z.number().min(0).max(10)
+model_json_schema()  (스키마 확인)        →  z.toJSONSchema(schema)
 while True: 직접 루프                     →  stopWhen: stepCountIs(5)
 tool_use / tool_result 블록               →  part.type === "tool-이름", state 4단계
 
