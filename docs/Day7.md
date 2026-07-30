@@ -742,21 +742,65 @@ export async function searchChunks(
 import "dotenv/config";
 import { searchChunks } from "@/lib/rag/store";
 
-const query = process.argv.slice(2).join(" ");
+// ⚠️ await를 최상단에 쓰지 말고 async 함수 안에 넣는다 (이유는 바로 아래)
+async function main() {
+  const query = process.argv.slice(2).join(" "); // slice(2): pnpm, query 다음 인자 사용
 
-if (!query) {
-  console.error("사용법: pnpm query <질문>");
+  if (!query) {
+    console.error("사용법: pnpm query <질문>");
+    process.exit(1);
+  }
+
+  const results = await searchChunks(query, { topK: 5, minScore: 0 });
+
+  console.log(`\n🔍 "${query}"\n`);
+  for (const r of results) {
+    console.log(`[${r.score.toFixed(3)}] ${r.source} > ${r.heading}`);
+    console.log(`   ${r.text.replace(/\n/g, " ").slice(0, 120)}…\n`);
+  }
+}
+
+main().catch((err) => {
+  console.error("❌ 검색 실패:", err);
   process.exit(1);
-}
-
-const results = await searchChunks(query, { topK: 5, minScore: 0 });
-
-console.log(`\n🔍 "${query}"\n`);
-for (const r of results) {
-  console.log(`[${r.score.toFixed(3)}] ${r.source} > ${r.heading}`);
-  console.log(`   ${r.text.replace(/\n/g, " ").slice(0, 120)}…\n`);
-}
+});
 ```
+
+### ⚠️ 여기서 함정 하나 — top-level await가 CJS에서 안 된다
+
+`await`를 `main()` 안에 넣지 않고 **파일 최상단에 그대로** 쓰면 이렇게 터집니다.
+
+```
+Error: Transform failed with 1 error:
+src/scripts/query.ts:12:16: ERROR: Top-level await is currently not supported
+                                   with the "cjs" output format
+```
+
+실행조차 안 되고 **트랜스파일 단계**에서 죽는 게 특징입니다. 원인은 `tsx`가 이 파일을 **CommonJS로 변환**하기 때문이고, CJS에는 top-level await라는 문법 자체가 없습니다.
+
+`tsx`가 모듈 형식을 정하는 규칙:
+
+| 조건 | 출력 형식 | top-level await |
+|---|---|---|
+| `package.json`에 `"type": "module"` **없음** + `.ts` | **cjs** | ❌ |
+| `"type": "module"` 있음 + `.ts` | esm | ✅ |
+| `.mts` 확장자 (`type`과 무관) | esm | ✅ |
+
+Next.js 프로젝트의 `package.json`에는 `"type"` 필드가 **없는 게 기본**입니다. 그래서 우리 `.ts` 스크립트는 전부 CJS로 변환됩니다.
+
+🐍 파이썬 대응: `asyncio.run()` 없이 모듈 최상단에 `await`를 쓴 것과 같은 상황입니다. 다만 파이썬은 `SyntaxError`로 명확히 알려주는데, 여기선 "cjs 출력 형식에서는 지원 안 됨"이라는 **한 다리 건넌 형태**로 나와서 원인이 덜 보입니다.
+
+💡 **`index-docs.ts`는 왜 안 터졌나** — 1-4에서 모든 `await`를 `async function main()` 안에 넣고 `main().catch(...)`로 호출했기 때문입니다. 즉 그 파일에는 top-level await가 하나도 없습니다. **`tsx`로 도는 스크립트에는 `main()` 래퍼를 기본 습관으로** 두세요. 🐍 파이썬에서 `if __name__ == "__main__": asyncio.run(main())`을 붙이던 자리와 정확히 같습니다.
+
+**해결 방안 정리** — 위 코드는 A를 적용한 것입니다.
+
+| | 방법 | 변경 범위 | 비고 |
+|---|---|---|---|
+| **A** ⭐ | `async function main()` + `main().catch(...)` | 스크립트 1파일 | `index-docs.ts`와 패턴 통일, 권장 |
+| B | 파일명을 `query.mts`로 (+ `package.json`의 경로도 수정) | 파일명 1개 | 코드는 원본 유지 가능 |
+| C | `package.json`에 `"type": "module"` 추가 | 프로젝트 전체 | Next.js 설정·CJS 의존성에 부수효과 위험, 비권장 |
+
+💡 A는 에러 핸들링이 공짜로 따라오는 것도 이점입니다. top-level await로 쓰면 실패 시 처리하지 않은 rejection이 그대로 스택 트레이스로 쏟아지지만, `main().catch(...)`가 있으면 `❌ 검색 실패:` 같은 **읽을 수 있는 메시지 + 종료 코드 1**을 줄 수 있습니다.
 
 ```bash
 pnpm query "제네릭이 파이썬의 무엇과 대응돼?"
