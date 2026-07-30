@@ -6,7 +6,7 @@
 >
 > **태그 범례**: `🐍` Python 대비 · `💡` 팁 · `⚠️` 함정 · `🎯` 배경 · `📖` 설명용(읽기만) · `⌨️` 실습(직접 치기) · `✅` 완성본
 
-> ⚠️ **버전 주의**: AI SDK는 **버전마다 API가 크게 바뀌는** 라이브러리입니다. 이 문서는 **AI SDK v6** 기준이에요. 코드가 안 되면 반드시 공식 문서 [ai-sdk.dev](https://ai-sdk.dev)에서 **현재 버전 예제**를 확인하세요. (특히 `useChat` 반환값·`tool()` 필드·모델 ID)
+> ⚠️ **버전 주의**: AI SDK는 버전마다 API가 크게 바뀌는 라이브러리입니다. 이 문서는 **AI SDK v6** 기준이에요. 코드가 안 되면 반드시 공식 문서 [ai-sdk.dev](https://ai-sdk.dev)에서 **현재 버전 예제**를 확인하세요. (특히 `useChat` 반환값·`tool()` 필드·모델 ID)
 
 ---
 
@@ -21,10 +21,10 @@
 
 LLM 스트리밍을 맨손으로 만들면 이렇게 귀찮습니다:
 
-- 서버: Anthropic이 보내는 **SSE(Server-Sent Events) 스트림**을 받아서 청크를 이어 붙이고, 도구 호출/결과/텍스트를 구분해 다시 클라이언트로 흘려보내야 함.
-- 클라이언트: 그 스트림을 `ReadableStream`으로 읽어 토큰을 하나씩 화면에 붙이고, 도구 호출 상태를 관리해야 함.
+- 서버: Anthropic이 보내는 **SSE(Server-Sent Events) 스트림**을 받아서 청크를 이어 붙이고 도구 호출/결과/텍스트를 구분해 다시 클라이언트로 흘려보내야 함.
+- 클라이언트: 그 스트림을 `ReadableStream`으로 읽어 토큰을 하나씩 화면에 붙이고 도구 호출 상태를 관리해야 함.
 
-**Vercel AI SDK v6**가 이 전부를 대신합니다. 서버는 `streamText(...).toUIMessageStreamResponse()` 한 줄, 클라이언트는 `useChat()` 훅 하나로 끝나요. 🐍 Python에서 `anthropic` SDK가 HTTP·SSE를 감춰주는 것과 같은 역할인데, **여기선 UI까지 이어주는 부분**이 핵심입니다.
+**Vercel AI SDK v6**가 이걸 전부 대신합니다. 서버는 `streamText(...).toUIMessageStreamResponse()` 한 줄, 클라이언트는 `useChat()` 훅 하나로 끝나요. 🐍 Python에서 `anthropic` SDK가 HTTP·SSE를 감춰주는 것과 같은 역할인데, **여기선 UI까지 이어주는 부분**이 핵심입니다.
 
 ### 0-1. 시작 전 준비 — API 키 (5분)
 
@@ -120,7 +120,7 @@ export async function GET() {
 
 ## 2. 세션 2 (오전) — 스트리밍 채팅 완성
 
-이제 `/api/chat` stub을 진짜로 바꾸고, 클라이언트를 `useChat`으로 교체합니다.
+이제 `/api/chat` stub을 진짜로 바꾸고 클라이언트를 `useChat`으로 교체합니다.
 
 ### 2-1. 서버 — `streamText`
 
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
 
 Day 5의 `ChatPanel`은 `useState`로 메시지를 직접 관리하고 가짜 봇을 넣었죠. 이제 **`useChat`이 메시지·요청·스트리밍을 전부 관리**합니다.
 
-**⚠️ 큰 변화 — 메시지 구조가 `parts`로 바뀜**: `useChat`의 메시지는 우리가 Day 4에서 만든 `{id, role, text}`가 아니라, **`{id, role, parts[]}`** 구조입니다. 한 메시지가 여러 조각(텍스트 조각, 도구 호출 조각 등)으로 이뤄져요. 그래서 `message.text`가 아니라 **`message.parts`를 순회**해 렌더합니다.
+**⚠️ 큰 변화 — 메시지 구조가 `parts`로 바뀜**: `useChat`의 메시지는 우리가 Day 4에서 만든 `{id, role, text}`가 아니라, **`{id, role, parts[]}`** 구조입니다. 한 메시지가 여러 조각(텍스트, 도구 호출 등)으로 이뤄져요. 그래서 `message.text`가 아니라 **`message.parts`를 순회**해 렌더합니다.
 
 ⌨️ 실습 — `chat-app/src/components/ChatPanel.tsx` **덮어쓰기**
 
@@ -189,7 +189,7 @@ export default function ChatPanel() {
 }
 ```
 
-💡 `status`는 요청 상태예요: `"ready"`(대기) / `"submitted"`(보냄) / `"streaming"`(토큰 흐르는 중) / `"error"`. 이걸로 "생성 중…" 표시와 입력 비활성화를 합니다.
+💡 `status`는 요청 상태예요: `"ready"`(대기) / `"submitted"`(보냄) / `"streaming"`(토큰 흐르는 중) / `"error"`. 이걸로 "생성 중…"을 표시하고 입력을 비활성화합니다.
 ⚠️ `messages`는 **`useChat`이 소유**합니다. 직접 수정하지 마세요(읽기 전용). 새 메시지는 `sendMessage`로만.
 
 ### 2-3. `MessageList` / `MessageItem`을 parts 모델로
@@ -312,7 +312,7 @@ export default function ChatInput({ onSend, disabled, input, setInput }: Props) 
 }
 ```
 
-⌨️ 실행 — `pnpm dev` 후 채팅해 보세요. **Claude의 답이 토큰 단위로 실시간으로 흐르면 오늘의 1차 목표 달성!** 🎉
+⌨️ 실행 — `pnpm dev` 후 채팅해 보세요. **Claude의 답이 토큰 단위로 실시간 흐르면 오늘의 1차 목표 달성!** 🎉
 
 ⚠️ 이제 우리가 Day 4에 만든 `types.ts`의 `Message` 타입은 안 씁니다(`useChat`의 `UIMessage`가 대체). 남겨둬도 무방하지만 혼동되면 지워도 됩니다.
 
@@ -329,7 +329,7 @@ export default function ChatInput({ onSend, disabled, input, setInput }: Props) 
 
 ### 3-1. 도구 정의 — Zod 스키마로
 
-**② 쉬운 설명**: `tool({ description, inputSchema, execute })`. `description`은 **모델이 언제 이 도구를 쓸지 판단하는 근거**, `inputSchema`는 입력 모양(Zod), `execute`는 실제 실행 함수.
+**쉬운 설명**: `tool({ description, inputSchema, execute })`. `description`은 **모델이 언제 이 도구를 쓸지 판단하는 근거**, `inputSchema`는 입력 모양(Zod), `execute`는 실제 실행 함수.
 
 ⌨️ 실습 — `chat-app/src/lib/tools.ts` 새 파일
 
@@ -402,7 +402,7 @@ export async function POST(req: Request) {
 }
 ```
 
-⚠️⚠️ **`stopWhen`이 없으면 무한 루프 위험**: 도구를 주면 모델이 "도구 호출 → 결과 → 또 호출 → …"을 반복할 수 있습니다. `stopWhen: stepCountIs(5)`는 **한 답변당 도구 호출 라운드를 최대 5회로 제한**해요. 이게 없으면 잘못된 모델이 비용을 무한히 쓸 수 있습니다. **도구를 쓰는 `streamText`엔 항상 `stopWhen`을 거세요.**
+⚠️⚠️ **`stopWhen`이 없으면 무한 루프 위험**: 도구를 주면 모델이 "도구 호출 → 결과 → 또 호출 → …"을 반복할 수 있습니다. `stopWhen: stepCountIs(5)`는 **한 답변당 도구 호출 라운드를 최대 5회로 제한**해요. 이게 없으면 모델이 잘못 돌 때 비용이 무한정 나갑니다. **도구를 쓰는 `streamText`엔 항상 `stopWhen`을 거세요.**
 💡 다단계 스텝: 채팅은 5, 자율 에이전트는 10~20, "도구 한 번 쓰고 바로 답"은 1이 적당합니다.
 
 ### 3-3. 확인 — 도구가 도는지
@@ -412,9 +412,9 @@ export async function POST(req: Request) {
 - "1234 곱하기 5678은?" → `calculate` 호출
 - "torvalds의 GitHub 팔로워 수 알려줘" → `githubUser` 호출
 
-`MessageItem`이 `tool-...` part를 만나 `ToolCallCard`(🔧 노란 카드)를 보여주고, 이어서 모델이 결과를 바탕으로 최종 답을 냅니다. **도구 호출 → 결과 → 최종 답변 루프**가 눈에 보이면 성공! 🎉
+`MessageItem`이 `tool-...` part를 만나 `ToolCallCard`(🔧 노란 카드)를 보여주고 이어서 모델이 그 결과를 보고 최종 답을 냅니다. **도구 호출 → 결과 → 최종 답변 루프**가 눈에 보이면 성공! 🎉
 
-💡 이게 사실상 "에이전트"의 씨앗입니다. **Day 9에서 이 루프를 LangGraph의 상태 그래프로 다시 지어**, 왜 프레임워크가 필요한지 대조합니다. 오늘은 "AI SDK식으로도 도구 루프가 된다"를 몸으로 확인하는 데 의미가 있어요.
+💡 이게 사실상 "에이전트"의 씨앗입니다. **Day 9에서 이 루프를 LangGraph의 상태 그래프로 다시 지어**, 왜 프레임워크가 필요한지 대조합니다. 오늘은 "AI SDK식으로도 도구 루프가 된다"를 몸으로 확인해 두면 돼요.
 
 ### ✅ 세션 3 체크
 - [ ] Zod `inputSchema` 도구 3개 정의
@@ -474,8 +474,8 @@ const result = streamText({
 <details><summary>정답 보기</summary>
 
 **두 가지 흔한 원인:**
-1. **`stopWhen` 누락/과소**: `stopWhen`이 없으면 v6는 **단일 스텝만** 실행해서, "도구 호출"까지만 하고 그 결과로 **최종 답을 생성하는 다음 스텝을 안 밟습니다.** → 도구 카드만 뜨고 답이 없음. `stopWhen: stepCountIs(5)`를 넣으면 "도구 호출 → 결과 → 최종 답" 스텝이 이어집니다.
-2. **`convertToModelMessages` 누락**: `messages`를 그대로 넘기면 형식이 안 맞아 에러가 나거나 이상하게 동작합니다. 반드시 `await convertToModelMessages(messages)`로 변환하세요.
+1. **`stopWhen` 누락/과소**: `stopWhen`이 없으면 v6는 **단일 스텝만** 실행해서 "도구 호출"까지만 하고 그 결과로 **최종 답을 생성하는 다음 스텝을 안 밟습니다.** → 도구 카드만 뜨고 답이 없음. `stopWhen: stepCountIs(5)`를 넣으면 "도구 호출 → 결과 → 최종 답" 스텝이 이어집니다.
+2. **`convertToModelMessages` 누락**: `messages`를 그대로 넘기면 형식이 안 맞아 에러가 나거나 엉뚱하게 동작합니다. 반드시 `await convertToModelMessages(messages)`로 변환하세요.
 
 교훈: **도구를 쓰면 `stopWhen`은 선택이 아니라 필수.** "도구만 돌고 답이 없다"의 90%는 여기입니다.
 </details>

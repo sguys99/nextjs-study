@@ -2,7 +2,7 @@
 
 > **소요 시간**: 약 8시간 (90분 × 4세션). 9일의 마지막 날입니다.
 > **선행 조건**: Day 8 완료 (LangChain RAG + `getRetriever()`, 도구 쓰는 챗봇 동작).
-> **오늘의 목표**: Day 6의 "AI SDK식 도구 루프"를 **LangGraph.js 상태 그래프**로 다시 짓고, Day 8의 리트리버를 **에이전트의 검색 도구**로 통합한다. 그리고 배포하고, 9일을 회고한다.
+> **오늘의 목표**: Day 6의 "AI SDK식 도구 루프"를 **LangGraph.js 상태 그래프**로 다시 짓고 Day 8의 리트리버를 **에이전트의 검색 도구**로 통합한다. 배포까지 마치고 9일을 회고한다.
 >
 > **태그 범례**: `🐍` Python 대비 · `💡` 팁 · `⚠️` 함정 · `🎯` 배경 · `📖` 설명용(읽기만) · `⌨️` 실습(직접 치기) · `✅` 완성본
 
@@ -16,14 +16,14 @@ Day 6에서 이미 "도구를 쓰는 에이전트"를 만들었죠(AI SDK의 `st
 
 ### 🎯 배경 — 왜 그래프 모델인가 (2026 에이전트 지형)
 
-단순 체인은 **프롬프트 → LLM → 출력**으로 끝나지만, 실제 에이전트는 **재시도·분기·도구 반복·사람 승인·멀티 에이전트**가 필요합니다. 이걸 코드 if문으로 관리하면 금세 지옥이 돼요.
+단순 체인은 **프롬프트 → LLM → 출력**으로 끝나지만 실제 에이전트는 **재시도·분기·도구 반복·사람 승인·멀티 에이전트**가 필요합니다. 이걸 코드 if문으로 관리하면 금세 지옥이 돼요.
 
 **LangGraph는 이 흐름을 그래프로 명시**합니다:
 - **노드(Node)** = 하는 일 (LLM 호출, 도구 실행) — 🐍 함수
 - **엣지(Edge)** = 다음에 뭐할지 (조건부 분기 포함)
 - **상태(State)** = 그래프가 들고 다니는 데이터 (대화 메시지 등) — 🐍 dataclass
 
-2026년 기준 LangGraph.js는 **프로덕션 안정 + Python판과 기능 동등**(StateGraph·조건부 엣지·체크포인팅·스트리밍·HITL)이고, Klarna·Replit·Uber 등이 실사용합니다. 🐍 **Python LangGraph를 써봤다면 개념이 그대로** 옮겨와요.
+2026년 기준 LangGraph.js는 **프로덕션 안정 + Python판과 기능 동등**(StateGraph·조건부 엣지·체크포인팅·스트리밍·HITL)입니다. Klarna·Replit·Uber 등이 실제로 씁니다. 🐍 **Python LangGraph를 써봤다면 개념이 그대로** 옮겨와요.
 
 ### 🎯 Day 6(AI SDK) ↔ 오늘(LangGraph) 대조
 
@@ -122,7 +122,7 @@ export const agentTools = [getCurrentTime, calculate, githubUser, searchKnowledg
 ```
 
 💡 `retriever.invoke(query)`가 Day 8의 `asRetriever()`를 실제로 부르는 곳입니다. **RAG(Day 7·8) → 에이전트 도구(오늘)로 완전히 합쳐졌어요.**
-⚠️ LangChain 도구 함수는 **문자열(또는 문자열화된 결과)**을 반환하는 게 안전합니다. 그래서 객체는 `JSON.stringify`로 감쌌어요.
+⚠️ LangChain 도구 함수는 **문자열(또는 문자열화된 결과)**을 반환하는 게 안전합니다. 객체를 `JSON.stringify`로 감싼 것도 그래서예요.
 
 ---
 
@@ -139,7 +139,7 @@ START ──▶ agent(LLM 추론) ──[도구 호출 있나?]──▶ tools(�
               └───────────────(있으면 다시 추론)◀────────────────────┘
 ```
 
-이게 바로 **ReAct 루프**(추론 ↔ 행동)입니다. Day 6에서 `stopWhen`이 안에서 감춰 돌리던 걸, 오늘은 **노드와 조건부 엣지로 직접** 그립니다.
+이게 바로 **ReAct 루프**(추론 ↔ 행동)입니다. Day 6에서 `stopWhen`이 안 보이는 곳에서 돌리던 루프를 오늘은 **노드와 조건부 엣지로 직접** 그립니다.
 
 ### 2-2. 그래프 코드
 
@@ -225,13 +225,13 @@ pnpm exec tsx scripts/try-agent.ts
 ```
 
 → 에이전트가 **추론 → `searchKnowledgeBase` 호출 → 결과 관찰 → 출처를 밝힌 최종 답변**을 내면, LangGraph 루프가 도는 겁니다. 🎉
-⚠️ `.env.local` 키가 안 읽히면, 스크립트 실행 시 환경변수를 직접 주입하세요: `ANTHROPIC_API_KEY=... pnpm exec tsx scripts/try-agent.ts` (Next.js 밖 순수 스크립트라 `.env.local` 자동 로드가 안 될 수 있음).
+⚠️ `.env.local` 키가 안 읽히면 스크립트 실행 시 환경변수를 직접 주입하세요: `ANTHROPIC_API_KEY=... pnpm exec tsx scripts/try-agent.ts` (Next.js 밖 순수 스크립트라 `.env.local` 자동 로드가 안 될 수 있음).
 
-💡 **UI 없이 먼저 콘솔에서** 그래프를 돌려본 이유: 스트리밍·화면 배선과 **에이전트 로직을 분리**해서, 그래프 자체를 또렷이 이해하기 위해서예요.
+💡 **UI 없이 먼저 콘솔에서** 그래프를 돌려본 이유: 스트리밍·화면 배선과 **에이전트 로직을 분리**해야 그래프 자체가 또렷이 보이기 때문이에요.
 
 ### 💡 지름길 — `createReactAgent` (참고)
 
-사실 위 그래프는 아주 흔한 패턴이라, LangGraph가 **프리빌트**로 제공합니다.
+사실 위 그래프는 아주 흔한 패턴이라 LangGraph가 **프리빌트**로 제공합니다.
 
 📖 설명용 — 같은 걸 한 줄로 (읽기만)
 
@@ -291,11 +291,11 @@ export async function POST(req: Request) {
 }
 ```
 
-💡 `agent.stream(..., { streamMode: "messages" })`는 `[메시지청크, 메타]` 튜플을 순회합니다. 우리는 **텍스트 토큰**(`chunk.content`)만 골라 SSE로 흘려요. (도구 실행 과정도 스트림에 오지만, 오늘은 최종 답 텍스트만 화면에 씁니다.)
+💡 `agent.stream(..., { streamMode: "messages" })`는 `[메시지청크, 메타]` 튜플을 순회합니다. 우리는 **텍스트 토큰**(`chunk.content`)만 골라 SSE로 흘려요. (도구 실행 과정도 스트림에 오지만 오늘은 최종 답 텍스트만 화면에 씁니다.)
 
 ### 3-2. 클라이언트 — 스트림 읽는 최소 훅
 
-`useChat`(AI SDK 전용)을 대신할, 우리 SSE를 읽는 작은 훅을 만듭니다.
+`useChat`(AI SDK 전용) 대신 우리 SSE를 읽는 작은 훅을 만듭니다.
 
 ⌨️ 실습 — `chat-app/src/hooks/useAgentChat.ts` 새 파일
 
@@ -397,7 +397,7 @@ export default function HomePage() {
 }
 ```
 
-⌨️ 실행 — `pnpm dev` 후 "Day 3에서 제네릭을 뭐라고 설명했어?"라고 물어보세요. **LangGraph 에이전트가 검색 도구를 쓰고, 답이 토큰 단위로 흐르면 통합 완성**입니다! 🎉
+⌨️ 실행 — `pnpm dev` 후 "Day 3에서 제네릭을 뭐라고 설명했어?"라고 물어보세요. **LangGraph 에이전트가 검색 도구를 쓰고 답이 토큰 단위로 흐르면 통합 완성**입니다! 🎉
 
 💡 이제 앱에 두 백엔드가 공존합니다: `/api/chat`(AI SDK, Day 6~8)와 `/api/agent`(LangGraph, 오늘). **같은 UI로 둘을 바꿔 써보며** "SDK식 vs 그래프식"을 직접 비교해 보세요.
 📖 참고: 프로덕션에선 이 수동 SSE 대신 **LangGraph의 React SDK(`useStream`)**나 검증된 어댑터를 쓰기도 합니다. 오늘은 원리를 보려고 직접 짰어요.
@@ -427,7 +427,7 @@ const checkpointer = new MemorySaver();
 
 ### 4-2. (선택) 관측 — LangSmith
 
-`LANGCHAIN_TRACING_V2=true` + `LANGCHAIN_API_KEY`를 설정하면, 에이전트의 **모든 스텝(어떤 도구를 왜 호출했는지)**이 LangSmith에 자동 기록됩니다. "에이전트가 왜 그렇게 했지?" 디버깅에 필수예요. (계정 필요, 선택)
+`LANGCHAIN_TRACING_V2=true` + `LANGCHAIN_API_KEY`를 설정하면 에이전트의 **모든 스텝(어떤 도구를 왜 호출했는지)**이 LangSmith에 자동 기록됩니다. "에이전트가 왜 그렇게 했지?" 디버깅에 필수예요. (계정 필요, 선택)
 
 ### 4-3. 배포 — Vercel
 
@@ -444,7 +444,7 @@ pnpm dlx vercel
 - **(b) RAG 없이 배포**: 도구 중 `searchKnowledgeBase`만 빼고 에이전트 배포.
 - **(c) 다른 런타임**: 임베딩을 별도 서버/컨테이너로 분리.
 
-💡 이건 **서버리스의 현실적 제약**을 배우는 좋은 기회예요. 로컬 학습엔 로컬 임베딩이 최고지만, 배포엔 호스팅 임베딩이 편합니다. 배포가 오늘 목표가 아니면 **로컬에서 도는 것으로 충분**합니다.
+💡 이건 **서버리스의 현실적 제약**을 배우는 좋은 기회예요. 로컬 학습엔 로컬 임베딩이 최고지만 배포엔 호스팅 임베딩이 편합니다. 배포가 오늘 목표가 아니면 **로컬에서 도는 것으로 충분**합니다.
 
 ### 4-4. 🎉 9일 회고
 
@@ -521,4 +521,4 @@ git push
 
 ---
 
-🎉 **9일 완주를 축하합니다.** Python 개발자에서 시작해, JS/TS를 익히고, React·Next.js 위에 스트리밍 챗봇을 세우고, RAG를 손으로 짠 뒤 LangChain으로 바꾸고, 에이전트를 LangGraph 그래프로 재구성해 전부 통합했습니다. 이제 프레임워크는 당신에게 블랙박스가 아닙니다. 🟨
+🎉 **9일 완주를 축하합니다.** Python 개발자에서 출발해 JS/TS를 익혔고, React·Next.js 위에 스트리밍 챗봇을 세웠습니다. RAG는 손으로 짠 뒤 LangChain으로 바꿨고, 에이전트는 LangGraph 그래프로 재구성해 전부 하나로 묶었습니다. 이제 프레임워크는 당신에게 블랙박스가 아닙니다. 🟨
