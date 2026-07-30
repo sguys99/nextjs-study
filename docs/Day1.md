@@ -20,6 +20,8 @@
 
 ```
 nextjs-study/
+├── .vscode/
+│   └── settings.json        ← 오늘 만듦 (⚠️ 루트에! 이유는 1-2 ⑤)
 ├── docs/
 │   └── Day1.md              ← 지금 이 문서
 └── practice/
@@ -27,7 +29,6 @@ nextjs-study/
         ├── package.json
         ├── eslint.config.js
         ├── .prettierrc
-        ├── .vscode/settings.json
         ├── 01-variables.js
         ├── 02-functions.js
         ├── 03-arrays-objects.js
@@ -148,15 +149,33 @@ export default [
 
 **⑤ 저장 시 자동 포맷 켜기 (핵심)**
 
-⌨️ 실습 — `practice/day1/.vscode/settings.json` 새 파일
+⚠️ **경로 주의 — 여기가 가장 많이 틀리는 곳입니다.** 이 파일은 `practice/day1/` 안이 아니라 **저장소 루트**(`nextjs-study/`)에 만들어야 합니다. VS Code는 **워크스페이스로 열어둔 폴더의 루트**에 있는 `.vscode/settings.json` 하나만 읽습니다. 하위 폴더에 만든 `.vscode/settings.json`은 **조용히 무시**돼요(에러도 안 납니다). 🐍 `pyproject.toml`처럼 가까운 상위 폴더를 찾아 올라가는 방식이 아닙니다.
+
+⌨️ 실습 — `nextjs-study/.vscode/settings.json` 새 파일 (**저장소 루트**)
 
 ```json
 {
+  "files.autoSave": "onFocusChange",
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" }
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "eslint.workingDirectories": [{ "mode": "auto" }]
 }
 ```
+
+각 줄의 뜻:
+
+| 설정 | 하는 일 |
+|------|---------|
+| `files.autoSave` | 자동저장 시점. ⚠️ **아래 함정 박스 필독** |
+| `editor.formatOnSave` | 저장할 때 포매터를 돌린다 |
+| `editor.defaultFormatter` | 그 포매터로 Prettier 확장을 쓴다 |
+| `editor.codeActionsOnSave` | 저장할 때 ESLint가 자동 수정 가능한 문제를 고친다 |
+| `eslint.workingDirectories` | `node_modules`/`eslint.config.js`가 하위 폴더(`practice/day1/`)에 있으므로, ESLint가 파일마다 알아서 찾아 올라가게 한다 |
+
+⚠️ **함정 — 자동저장(`afterDelay`)을 켜두면 자동 포맷이 안 됩니다.** VS Code는 "몇 초 뒤 자동저장"(`afterDelay`) 방식일 때 **formatOnSave와 codeActionsOnSave를 일부러 건너뜁니다.** 타이핑 중에 커서가 튀는 걸 막기 위한 설계예요. 그래서 위 설정에 `"files.autoSave": "onFocusChange"`(다른 파일/창으로 옮길 때 저장)를 함께 넣었습니다. 이러면 자동저장도 쓰고 자동 포맷도 받습니다. 그래도 **1-3의 확인은 `Cmd/Ctrl+S`를 직접 눌러서** 하세요 — 수동 저장은 항상 포맷을 트리거합니다.
+
+💡 여기서 만든 루트 `.vscode/settings.json`은 Day 2~10 내내 그대로 씁니다. 오늘 한 번만 만들면 끝이에요.
 
 ### 1-3. 동작 확인 — 일부러 지저분하게 쳐보기
 
@@ -167,7 +186,7 @@ const    name="광명"
 console.log(   "hi",name    )
 ```
 
-이제 **저장(Cmd/Ctrl+S)**하세요. Prettier가 자동으로 이렇게 정리하면 성공입니다:
+이제 **저장(Cmd/Ctrl+S를 직접 누르세요)**. Prettier가 자동으로 이렇게 정리하면 성공입니다:
 
 ✅ 저장 후 모습
 
@@ -185,6 +204,24 @@ node 01-variables.js
 → 콘솔에 `hi 광명` 이 출력되면 환경 완성입니다. 🎉
 
 > ⌨️ **미니 실습 (1분)**: `01-variables.js`에 안 쓰는 변수 `const unused = 3;`을 추가하고 저장해 보세요. ESLint가 노란 경고(`unused`가 안 쓰임)를 보여주면 린터도 잘 도는 겁니다. 확인했으면 그 줄은 지우세요.
+
+#### 🔧 안 되면 — 위에서부터 순서대로 확인
+
+저장해도 코드 모양이 그대로라면 아래를 위에서부터 짚어보세요. 대부분 1~2번입니다.
+
+1. **`.vscode/settings.json`이 저장소 루트에 있나?** `practice/day1/.vscode/`에 만들었으면 무시됩니다(1-2 ⑤ 참고). 루트로 옮기세요.
+2. **자동저장이 `afterDelay`인가?** 그러면 자동 포맷이 안 돕니다. 루트 설정에 `"files.autoSave": "onFocusChange"`를 넣고, 확인은 `Cmd/Ctrl+S`로 하세요.
+3. **VS Code로 연 폴더가 `nextjs-study`인가?** 다른 폴더(예: 상위 `project/`)를 열었으면 그 폴더의 루트를 기준으로 설정을 찾습니다. 타이틀바나 탐색기 맨 위 폴더명을 확인하세요.
+4. **확장 2종이 설치돼 있나?** 확장 탭에서 `Prettier - Code formatter`(`esbenp.prettier-vscode`)와 `ESLint`(`dbaeumer.vscode-eslint`)를 검색해 확인. 설치 후에는 창을 새로 로드(`Cmd/Ctrl+Shift+P` → `Developer: Reload Window`)하세요.
+5. **터미널에서는 되나?** 도구 문제인지 VS Code 배선 문제인지 가르는 갈림길입니다. `practice/day1/`에서:
+
+   ```bash
+   ./node_modules/.bin/prettier --check 01-variables.js
+   ```
+
+   `[warn] 01-variables.js`가 나오면 **Prettier는 정상이고 VS Code 배선 문제**입니다 → 1~4번으로 돌아가세요. 여기서 에러가 나면 `pnpm add -D eslint @eslint/js prettier`를 다시 실행하세요.
+
+💡 그래도 안 되면 최후의 수단: `Cmd/Ctrl+Shift+P` → `Format Document`를 직접 실행해 보세요. 여기서 포맷은 되는데 저장 시엔 안 된다면 범인은 확실히 1~3번(설정 경로 또는 자동저장)입니다.
 
 ### ✅ 세션 1 체크
 - [ ] 저장하면 Prettier가 코드를 자동 정리한다
