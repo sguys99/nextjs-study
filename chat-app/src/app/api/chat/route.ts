@@ -126,7 +126,7 @@ export async function POST(req: Request) {
       system: SYSTEM_PROMPT,
       messages: await convertToModelMessages(messages),
       tools: chatTools,
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(6),
     });
 
     // 🆕 ② 스트리밍 도중의 에러 — try/catch로는 못 잡는 영역

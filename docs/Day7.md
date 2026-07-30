@@ -933,7 +933,7 @@ Day 6의 `ToolCallCard`가 도구 결과를 JSON으로 덤프하고 있었죠. R
 
 ```tsx
 // src/components/SourceList.tsx
-type SourceItem = {
+export type SourceItem = {   // 🆕 MessageItem에서도 쓰므로 export
   source: string;
   heading: string;
   score: number;
@@ -967,27 +967,80 @@ export function SourceList({ results }: { results: SourceItem[] }) {
 }
 ```
 
+이제 `MessageItem.tsx`에 분기를 추가합니다. **삽입 위치가 중요**해서 파일 전체를 싣습니다 — Day 6 코드에서 달라진 곳은 🆕 표시 두 군데뿐입니다.
+
 ```tsx
-// src/components/MessageItem.tsx — 도구 파트 분기에 추가
-if (part.type === "tool-searchKnowledgeBase") {
-  const p = part as unknown as {
-    state: string;
-    output?: { found: boolean; results: SourceItem[] };
-  };
+// src/components/MessageItem.tsx
+import type { UIMessage } from "ai";
+import { ToolCallCard } from "@/components/ToolCallCard";
+import { SourceList, type SourceItem } from "@/components/SourceList";   // 🆕
 
-  if (p.state !== "output-available") {
-    return (
-      <p key={i} className="text-xs text-gray-400">
-        📚 학습 자료를 검색하는 중…
-      </p>
-    );
-  }
-  return <SourceList key={i} results={p.output?.results ?? []} />;
+type MessageItemProps = { message: UIMessage };
+
+export function MessageItem({ message }: MessageItemProps) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] space-y-2 rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
+          isUser ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-900"
+        }`}
+      >
+        {message.parts.map((part, i) => {
+          if (part.type === "text") {
+            return <span key={i}>{part.text}</span>;
+          }
+
+          // 🆕 RAG 검색 도구만 ToolCallCard 대신 출처 목록으로
+          if (part.type === "tool-searchKnowledgeBase") {
+            const p = part as unknown as {
+              state: string;
+              output?: { found: boolean; results: SourceItem[] };
+            };
+
+            if (p.state !== "output-available") {
+              return (
+                <p key={i} className="text-xs text-gray-400">
+                  📚 학습 자료를 검색하는 중…
+                </p>
+              );
+            }
+            return <SourceList key={i} results={p.output?.results ?? []} />;
+          }
+
+          // 나머지 도구는 기존 ToolCallCard로 (Day 6 그대로)
+          if (part.type.startsWith("tool-")) {
+            const p = part as unknown as {
+              type: string;
+              state: string;
+              input?: unknown;
+              output?: unknown;
+              errorText?: string;
+            };
+            return (
+              <ToolCallCard
+                key={i}
+                toolName={p.type.slice("tool-".length)}
+                state={p.state}
+                input={p.input}
+                output={p.output}
+                errorText={p.errorText}
+              />
+            );
+          }
+
+          return null;
+        })}
+      </div>
+    </div>
+  );
 }
-
-// 나머지 도구는 기존 ToolCallCard로
-if (part.type.startsWith("tool-")) { /* ... */ }
 ```
+
+⚠️ **`tool-searchKnowledgeBase` 분기는 반드시 `startsWith("tool-")` 위에** 와야 합니다. 아래에 두면 일반 분기가 먼저 `return`해버려서 `SourceList`는 영영 그려지지 않아요. Python의 `if / elif` 체인과 같은 원리인데, 여기서는 early return이라 **위에 있는 쪽이 이깁니다**.
+
+💡 `import { SourceList, type SourceItem }` — 값과 타입을 한 줄에 섞어 가져올 수 있습니다. `type` 키워드를 붙이면 "런타임에는 안 쓰는 타입"이라고 알려주는 셈이라 컴파일 시 번들에서 지워집니다. Python의 `if TYPE_CHECKING:` 임포트와 같은 목적이에요.
 
 💡 `<details>` / `<summary>`는 **JS 없이 브라우저가 제공하는 접기/펼치기**입니다. `useState`로 토글을 만들 필요가 없어요 — Day 4의 "effect가 필요 없는 경우"와 같은 정신입니다.
 

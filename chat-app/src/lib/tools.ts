@@ -1,6 +1,7 @@
 // src/lib/tools.ts
 import { tool } from "ai";
 import { z } from "zod";
+import { searchChunks } from "@/lib/rag/store";
 
 /** ① 현재 시각 — 가장 단순한 도구 (LLM이 모르는 정보) */
 
@@ -74,4 +75,40 @@ export const getGithubUser = tool({
   },
 });
 
-export const chatTools = { getCurrentTime, calculate, getGithubUser };
+export const searchKnowledgeBase = tool({
+  description: `학습 자료 지식베이스(JS/TS/React/Next.js 7일 학습 문서)를 검색한다.
+사용자가 학습 내용, 특정 개념, "Day N에서 뭐라고 했지" 같은 질문을 하면 반드시 이 도구를 사용한다.
+답을 지어내지 말고 먼저 검색하라. 필요하면 다른 키워드로 여러 번 검색해도 된다.`,
+  inputSchema: z.object({
+    query: z
+      .string()
+      .describe("검색어. 사용자 질문을 그대로 쓰기보다 핵심 키워드 위주로 재작성한다."),
+    topK: z.number().int().min(1).max(8).default(4)
+      .describe("가져올 문서 조각 수"),
+  }),
+  execute: async ({ query, topK }) => {
+    const results = await searchChunks(query, { topK });
+
+    if (results.length === 0) {
+      return { found: false, message: "관련 내용을 찾지 못했습니다.", results: [] };
+    }
+
+    return {
+      found: true,
+      results: results.map((r) => ({
+        source: r.source,
+        heading: r.heading,
+        score: Number(r.score.toFixed(3)),
+        // ⚠️ 토큰 절약: 너무 긴 청크는 자른다
+        text: r.text.slice(0, 1000),
+      })),
+    };
+  },
+});
+
+export const chatTools = {
+  getCurrentTime,
+  calculate,
+  getGithubUser,
+  searchKnowledgeBase,     // 🆕
+};
