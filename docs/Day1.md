@@ -1,55 +1,45 @@
 # Day 1 — 개발환경 완성 + JavaScript 코어 문법
 
-> **소요 시간**: 8시간 (90분 학습 + 15분 휴식 × 4세션)
-> **선행 조건**: Day 0 완료 (`node -v` → v24.x, `pnpm -v`, VS Code + 확장 3종 설치됨)
-> **목표**: 로컬 JS 실행·린팅 환경을 "저장 시 자동 포맷"까지 완성하고, JS 코어 문법(변수·함수·배열/객체)을 Python과 대조하며 손으로 체화한다.
-> **핵심 태그**: 🐍 = 파이썬 대비 포인트 · 💡 = 팁 · ⚠️ = 함정
+> **소요 시간**: 약 8시간 (90분 학습 + 15분 휴식 × 4세션). 급하지 않게, 손을 많이 움직이세요.
+> **선행 조건**: Day 0 완료 (`node -v`→v24.x, `pnpm -v`, VS Code + 확장 3종).
+> **오늘의 목표**: ① "저장하면 자동으로 검사·정리되는" 환경을 완성하고 ② JS 코어 문법(변수·함수·배열/객체)을 Python과 대조하며 **직접 쳐서** 체화한다.
+>
+> **태그 범례**: `🐍` Python 대비 · `💡` 팁 · `⚠️` 함정 · `🎯` 배경 · `📖` 설명용(읽기만) · `⌨️` 실습(직접 치기) · `✅` 완성본
 
 ---
 
-## 0. 오늘의 목적 & 저장소에 실습 배치하기
+## 0. 오늘 어떻게 진행되나 (2분)
 
-Day 0에서 "부품"(Node/pnpm/VS Code)을 깔았습니다. Day 1은 그 부품들을 **실제로 배선**해서 "코드를 쓰면 자동으로 검사·정리되는" 환경을 만들고, 그 위에서 **JS 문법을 파이썬 지식에 얹는** 날입니다.
+당신은 이미 강한 프로그래머입니다. 그래서 Day 1의 목표는 "프로그래밍을 배우는 것"이 아니라 **"Python 습관을 JS 습관으로 번역하는 것"**이에요. 문법 자체보다 **함정(⚠️)**에 집중하세요.
 
-당신은 이미 강한 프로그래머예요. 그래서 Day 1의 목표는 "프로그래밍을 배우는 것"이 아니라 **"파이썬 습관을 JS 습관으로 번역하는 것"**입니다. 문법 자체보다 **함정(⚠️)**에 집중하세요.
+이 문서는 **읽는 시간보다 치는 시간이 더 많도록** 설계했습니다. 개념 하나가 나올 때마다 바로 `⌨️ 미니 실습`이 붙어요. **꼭 직접 타이핑**하세요. 복사-붙여넣기 말고요. 손이 기억합니다.
 
-### 0-1. 저장소 구조 (이 문서 기준)
+### 0-1. 오늘 만들 폴더 구조
 
-당신의 저장소는 `docs/`에 학습 문서를 두고 있습니다. 실습 코드는 문서와 분리해서 `practice/`에 Day별로 쌓아갑니다. Day 2, Day 3도 같은 규칙으로 이어집니다.
+실습 코드는 문서(`docs/`)와 분리해 `practice/`에 Day별로 쌓습니다.
 
 ```
 nextjs-study/
 ├── docs/
-│   ├── roadmap.md
-│   ├── Day0.md
 │   └── Day1.md              ← 지금 이 문서
-└── practice/                ← 실습 코드 루트 (오늘 새로 만듦)
-    └── day1/
+└── practice/
+    └── day1/                ← 오늘 만듦
         ├── package.json
         ├── eslint.config.js
         ├── .prettierrc
-        ├── .vscode/
-        │   └── settings.json
-        ├── 01-hello.js
-        ├── 02-variables.js
-        ├── 03-functions.js
-        ├── 04-arrays-objects.js
+        ├── .vscode/settings.json
+        ├── 01-variables.js
+        ├── 02-functions.js
+        ├── 03-arrays-objects.js
         └── exercise/
             └── model-report.js
 ```
 
-💡 **왜 Day별 폴더인가?** 각 Day가 독립된 `package.json`을 가지면, 나중에 특정 실습만 다시 돌려보거나 남에게 보여줄 때 깔끔합니다. Day 5부터는 Next.js 앱이 `practice/app/` 하나로 계속 커지지만(로드맵의 "하나로 이어지는 프로젝트"), Day 1~3의 문법 연습은 Day별로 격리하는 게 편해요.
+### 0-2. 시작 준비
 
-⚠️ **`node_modules`는 커밋 금지**: 실습 폴더에서 `pnpm add`를 하면 `practice/day1/node_modules/`가 생깁니다. 저장소 루트 `.gitignore`에 아래가 있는지 확인하고, 없으면 추가하세요. (= 파이썬에서 `.venv`를 커밋 안 하는 것과 동일)
-
-```gitignore
-node_modules/
-```
-
-### 0-2. 시작 전 준비 (1분)
+⌨️ 실습 — 저장소 루트에서
 
 ```bash
-# 저장소 루트에서
 mkdir -p practice/day1
 cd practice/day1
 ```
@@ -60,720 +50,697 @@ cd practice/day1
 
 ## 1. 세션 1 (오전) — 개발환경 셋업 ⭐가장 중요
 
-> **이 세션이 오늘의 핵심입니다.** JS는 파이썬보다 도구 세팅이 학습 속도를 훨씬 크게 좌우합니다. "저장하면 자동으로 검사·정리되는" 상태를 만들면, 남은 6일 내내 이득을 봅니다.
+### 🎯 배경 — 왜 JS는 "도구 세팅"이 이렇게 중요한가
 
-### 1-1. `package.json` 해부 (≈ `pyproject.toml`)
+Python에서는 린터·포매터가 "있으면 좋은 것"이죠. JS에서는 **거의 필수**입니다. 이유가 있어요.
 
-먼저 프로젝트를 초기화합니다.
+- JS는 Day 0에서 봤듯 급하게 태어나 **함정이 많은 언어**입니다. 세미콜론, `==`, 변수 스코프 등에서 조용히 버그가 납니다.
+- 그래서 커뮤니티가 **ESLint**(문제 코드를 잡아주는 린터)와 **Prettier**(코드 모양을 자동 정리하는 포매터)를 만들어 "사람이 실수할 여지"를 도구로 막습니다.
+- 🐍 ESLint ≈ ruff/flake8(버그·안티패턴 검출), Prettier ≈ black/ruff format(모양 통일). Python에서 이걸 안 써도 살지만, JS는 **처음부터 켜두는 게 학습 속도를 크게 좌우**합니다.
+
+오늘 이걸 "저장하면 자동으로 도는" 상태로 만들어두면, 남은 8일 내내 이득을 봅니다.
+
+### 1-1. `package.json` — 프로젝트의 신분증
+
+**① 왜 있나**: 프로젝트 이름·버전·의존성·실행 스크립트를 한 곳에 적어두는 파일. 이게 있어야 `pnpm install`로 남이 똑같이 복원합니다.
+**② 쉬운 설명**: 🐍 `pyproject.toml`과 거의 같은 역할입니다.
+**③ 만들기**
+
+⌨️ 실습 — `practice/day1/`에서
 
 ```bash
 pnpm init
 ```
 
-생성된 `package.json`을 열어보세요. 파이썬 프로젝트 설정과 1:1로 대응됩니다.
+생성된 `package.json`을 VS Code로 열어보세요.
+
+📖 설명용 — 생성된 파일(대략 이런 모양, 타이핑 X)
 
 ```json
 {
   "name": "day1",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
-}
-```
-
-| `package.json` 필드 | 🐍 `pyproject.toml` 대응 | 설명 |
-|---|---|---|
-| `name`, `version` | `[project] name/version` | 프로젝트 메타데이터 |
-| `scripts` | `[tool.poetry.scripts]` / Makefile | `pnpm run <이름>`으로 실행할 명령 모음 |
-| `dependencies` | `[project] dependencies` | 런타임 의존성 (아직 없음) |
-| `devDependencies` | `dependency-groups.dev` (uv) | 개발용 의존성 (린터 등) |
-| `type` | (직접 대응 없음) | 모듈 방식 지정 — 아래에서 추가 |
-
-**`package.json`을 아래처럼 수정**하세요. (`main`, `keywords` 등 불필요한 필드는 지워도 됩니다.)
-
-```json
-{
-  "name": "day1",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "lint": "eslint .",
-    "format": "prettier --write ."
   }
 }
 ```
 
-🐍 **`"type": "module"`이 뭔가요?** JS에는 역사적 이유로 모듈 방식이 두 가지 있습니다(CommonJS `require` vs ES Modules `import`). `"type": "module"`을 넣으면 **모던 방식(ES Modules)**을 기본으로 쓰겠다는 선언입니다. 파이썬은 `import` 하나뿐이라 고민할 게 없지만, JS는 이 한 줄로 "우리는 최신 문법을 쓴다"를 정합니다. (자세한 모듈 이야기는 Day 2)
+| 필드 | 🐍 대응 | 설명 |
+|------|---------|------|
+| `name`/`version` | `[project] name/version` | 프로젝트 메타데이터 |
+| `scripts` | Makefile / `poetry run` | `pnpm run <이름>`으로 실행할 명령 모음 |
+| `dependencies` | `dependencies` | 실행에 필요한 패키지 (곧 생김) |
+| `devDependencies` | dev 그룹 | 개발용(린터 등) 패키지 |
 
-### 1-2. 첫 스크립트 실행 — `node file.js`
+💡 `type` 필드: `package.json`에 `"type": "module"`을 넣으면 최신 `import`/`export` 문법을 씁니다. 오늘은 아직 안 넣습니다(세션 없이도 됨). Day 2에서 모듈을 배울 때 다룰게요.
 
-`01-hello.js` 파일을 만들고:
+### 1-2. ESLint + Prettier 설정
 
-```js
-// 01-hello.js
-console.log("Hello from Node", process.version);
+**① 왜 있나**: 저장할 때마다 자동으로 코드를 검사(ESLint)하고 모양을 정리(Prettier)하기 위해.
+**② 설치**
 
-const name = "ML 개발자";
-console.log(`반가워요, ${name}!`);
-```
-
-실행:
-
-```bash
-node 01-hello.js
-```
-
-출력:
-```
-Hello from Node v24.x.x
-반가워요, ML 개발자!
-```
-
-🐍 `console.log(...)`는 파이썬의 `print(...)`입니다. `node 01-hello.js`는 `python 01-hello.py`와 정확히 같은 구조예요.
-
-### 1-3. ESLint + Prettier 설치 (린터 + 포매터)
-
-파이썬의 **ruff/flake8(린터) + black(포매터)** 조합을 JS에서는 **ESLint(린터) + Prettier(포매터)**로 합니다.
-
-| 도구 | 역할 | 🐍 파이썬 대응 |
-|---|---|---|
-| **ESLint** | 버그성 문제 검출 (안 쓴 변수, 오타 등) | ruff / flake8 |
-| **Prettier** | 코드 포맷팅 (들여쓰기, 따옴표, 줄바꿈) | black / ruff format |
-| **eslint-config-prettier** | 둘이 안 싸우게 스타일 규칙 조정 | (파이썬엔 딱 맞는 대응 없음) |
-
-💡 **린터 vs 포매터 — 뭐가 다른가?** 린터는 코드의 **의미/논리**를 검사하고("여기 버그 가능성 있어요" 경고), 포매터는 코드의 **모양**만 정리합니다(군말 없이 고쳐서 저장). 🐍 파이썬으로 비유하면:
-
-```python
-x = 10
-if x == None:   # ← flake8: "== None 대신 is None 쓰세요" → 린터 (논리 문제)
-    y=[1,2,  3] # ← black: 띄어쓰기 정리해서 y = [1, 2, 3] → 포매터 (모양 문제)
-```
-
-포매터가 `x == None`을 `x is None`으로 바꾸지 않는 이유 — 그건 코드의 **동작이 바뀌는** 수정이라 포매터 영역이 아닙니다. 반대로 린터는 들여쓰기가 2칸이든 4칸이든 신경 안 씁니다. 한 줄 요약: **린터 = 코드 리뷰어(버그 지적), 포매터 = 타이피스트(정렬만)**. 둘의 역할이 살짝 겹치는 지점(줄 길이 같은 스타일 규칙)에서 서로 싸울 수 있어서, `eslint-config-prettier`가 ESLint 쪽 스타일 규칙을 꺼 "스타일은 Prettier, 논리는 ESLint"로 교통정리를 해줍니다.
-
-설치 (개발용 의존성 → `-D`):
+⌨️ 실습
 
 ```bash
-pnpm add -D eslint @eslint/js eslint-config-prettier globals prettier
+pnpm add -D eslint @eslint/js prettier
 ```
 
-🐍 `pnpm add -D <pkg>`는 `uv add --dev <pkg>` / `pip install -D`와 같습니다. 설치 후 `package.json`에 `devDependencies`가 생기고, `node_modules/`와 `pnpm-lock.yaml`(= `uv.lock`)이 만들어집니다.
+`-D`는 개발용 의존성(🐍 dev 그룹)이라는 뜻이에요. 설치가 끝나면 `node_modules/`와 `pnpm-lock.yaml`이 생깁니다. (⚠️ `node_modules`는 git 커밋 금지 — Day 0 참고)
 
-### 1-4. ESLint 설정 파일 — `eslint.config.js`
+**③ ESLint 설정 파일 만들기**
 
-최신 ESLint(9.x)는 **flat config**라는 방식을 씁니다. 아래 파일을 만드세요.
+⌨️ 실습 — `practice/day1/eslint.config.js` 새 파일
 
 ```js
-// eslint.config.js
 import js from "@eslint/js";
-import globals from "globals";
-import prettierConfig from "eslint-config-prettier";
 
 export default [
-  js.configs.recommended, // ESLint 권장 규칙 세트
-  prettierConfig, // Prettier와 충돌하는 스타일 규칙 끄기
+  js.configs.recommended,
   {
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: {
-        ...globals.node, // console, process 등 Node 전역 인식
-      },
+      globals: { console: "readonly", process: "readonly" },
     },
     rules: {
-      "no-unused-vars": "warn", // 안 쓴 변수는 경고 (학습 중엔 error 대신 warn이 편함)
+      "no-unused-vars": "warn",
+      "no-console": "off",
     },
   },
 ];
 ```
 
-💡 `globals.node`를 넣는 이유: ESLint는 기본적으로 `console`, `process` 같은 걸 "정의 안 된 변수"로 의심합니다. `globals.node`로 "이건 Node 환경의 전역이야"라고 알려줘야 경고가 안 뜹니다.
+💡 이건 ESLint 9의 "플랫 설정(flat config)" 방식입니다. 지금은 내용을 외울 필요 없어요. "recommended 규칙을 켜고, 안 쓰는 변수는 경고, console은 허용" 정도만 읽으면 됩니다.
 
-### 1-5. Prettier 설정 파일 — `.prettierrc`
+**④ Prettier 설정 파일**
+
+⌨️ 실습 — `practice/day1/.prettierrc` 새 파일
 
 ```json
 {
   "semi": true,
   "singleQuote": false,
-  "printWidth": 80
+  "trailingComma": "all"
 }
 ```
 
-- `semi`: 문장 끝 세미콜론(`;`) 자동 추가
-- `singleQuote`: `false`면 큰따옴표 사용
-- `printWidth`: 80자 넘으면 줄바꿈 (black의 line-length와 동일 개념)
+**⑤ 저장 시 자동 포맷 켜기 (핵심)**
 
-💡 Prettier는 "설정으로 싸우지 말자"가 철학이라 옵션이 적습니다. 위 3개면 충분해요. 팀 규칙 없으면 기본값도 무방합니다.
-
-### 1-6. VS Code 배선 — "저장 시 자동 포맷" 완성 ⭐
-
-이게 오늘의 하이라이트입니다. `.vscode/settings.json`을 만드세요. (이 프로젝트에서만 적용되는 설정)
+⌨️ 실습 — `practice/day1/.vscode/settings.json` 새 파일
 
 ```json
 {
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  }
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" }
 }
 ```
 
-- `formatOnSave`: 저장할 때마다 Prettier가 자동 정리
-- `defaultFormatter`: Prettier 확장을 포매터로 지정 (Day 0에 설치함)
-- `codeActionsOnSave`: 저장 시 ESLint가 자동 고칠 수 있는 건 고침
+### 1-3. 동작 확인 — 일부러 지저분하게 쳐보기
 
-💡 최신 VS Code ESLint 확장은 `eslint.config.js`(flat config)를 자동 인식합니다. 만약 ESLint가 안 도는 것 같으면 `Cmd/Ctrl + Shift + P` → "ESLint: Restart ESLint Server" 실행.
-
-### 1-7. 검증 — 정말 도는지 확인
-
-일부러 지저분한 코드를 `01-hello.js`에 넣고 저장해보세요:
+⌨️ 실습 — `practice/day1/01-variables.js` 새 파일에 **일부러 못생기게** 입력
 
 ```js
-const    x="messy"     ;console.log(   x)
+const    name="광명"
+console.log(   "hi",name    )
 ```
 
-저장(`Cmd/Ctrl + S`)하는 순간 Prettier가 아래처럼 정리하면 성공입니다:
+이제 **저장(Cmd/Ctrl+S)**하세요. Prettier가 자동으로 이렇게 정리하면 성공입니다:
+
+✅ 저장 후 모습
 
 ```js
-const x = "messy";
-console.log(x);
+const name = "광명";
+console.log("hi", name);
 ```
 
-터미널 검증:
+⌨️ 실습 — 실행
+
 ```bash
-pnpm lint      # ESLint 실행 → 문제 0개면 조용히 끝남
-pnpm format    # Prettier로 전체 파일 정리
+node 01-variables.js
 ```
+
+→ 콘솔에 `hi 광명` 이 출력되면 환경 완성입니다. 🎉
+
+> ⌨️ **미니 실습 (1분)**: `01-variables.js`에 안 쓰는 변수 `const unused = 3;`을 추가하고 저장해 보세요. ESLint가 노란 경고(`unused`가 안 쓰임)를 보여주면, 린터도 잘 도는 겁니다. 확인했으면 그 줄은 지우세요.
 
 ### ✅ 세션 1 체크
-- [x] `pnpm init`으로 `package.json` 생성, `"type": "module"` 추가
-- [x] `node 01-hello.js` 실행 성공
-- [x] ESLint/Prettier/config-prettier/globals 설치됨 (`devDependencies` 확인)
-- [x] `eslint.config.js`, `.prettierrc`, `.vscode/settings.json` 생성
-- [x] **저장하면 코드가 자동으로 정리됨** ← 가장 중요
+- [ ] 저장하면 Prettier가 코드를 자동 정리한다
+- [ ] 안 쓰는 변수에 ESLint 경고가 뜬다
+- [ ] `node 01-variables.js`로 출력에 성공했다
 
 ---
 
-## 2. 세션 2 (오전) — 변수 · 타입 · 연산
+## 2. 세션 2 (오전) — 변수·타입·연산
 
-> 새 파일 `02-variables.js`를 만들고, 아래 내용을 직접 쳐보면서 `node 02-variables.js`로 확인하세요.
+이제 문법입니다. 세션 2~4는 `01-variables.js`, `02-functions.js`, `03-arrays-objects.js`에 나눠 담습니다.
 
-### 2-1. `let` / `const` (그리고 `var`는 왜 안 쓰나)
+### 2-1. `let`과 `const` (그리고 `var`는 왜 안 쓰나)
 
-```js
-const PI = 3.14; // 재할당 불가 (파이썬엔 없는 개념)
-let count = 0; // 재할당 가능
-count = 1; // OK
+**① 왜 중요**: JS는 변수 선언 키워드가 3개(`var`/`let`/`const`)인데, `var`는 옛날 것이고 함정이 많아 **안 씁니다.**
+**② 쉬운 설명**:
+- `const` = 재할당 불가 (기본값으로 이걸 쓰세요)
+- `let` = 재할당 가능 (값이 바뀌어야 할 때만)
+**③ 🐍 Python 다리 + JS 자체 설명**: Python은 그냥 `x = 3`이라 선언 키워드가 없죠. JS는 **반드시 `const` 또는 `let`을 붙여** 선언합니다. 안 붙이면 사고가 납니다.
 
-// const PI = 3.15;  // ❌ TypeError: Assignment to constant variable
-```
+⚠️ **함정 — `const`는 "상수"가 아니라 "재할당 금지"**: `const`로 만든 배열/객체의 **내용은 바꿀 수 있습니다.** "이름표를 다른 값에 다시 못 붙인다"는 뜻이지, "값이 얼어붙는다"가 아니에요.
 
-🐍 파이썬엔 상수 개념이 문법으로 없습니다(관례상 대문자). JS는 **`const`가 기본, 바뀌는 값만 `let`**입니다.
-
-⚠️ **`const`는 "재할당 금지"지 "불변"이 아닙니다.** 객체/배열의 내부는 바꿀 수 있어요:
+📖 설명용
 
 ```js
+const x = 1;
+// x = 2;            // ❌ TypeError: Assignment to constant variable
 const arr = [1, 2];
-arr.push(3); // ✅ OK — 배열 "내용" 변경은 가능
-console.log(arr); // [1, 2, 3]
-// arr = [9];        // ❌ 재할당은 금지
+arr.push(3);         // ✅ 가능! 내용 변경은 OK → [1, 2, 3]
 ```
 
-💡 **`var`는 안 씁니다.** 옛날 문법이고 스코프 규칙이 헷갈립니다. "`const`를 기본으로, 바뀌면 `let`" 이 한 줄만 기억하세요.
+> ⌨️ **미니 실습** — `01-variables.js`에 작성 후 `node 01-variables.js`
+> ```js
+> const city = "서울";
+> let count = 0;
+> count = count + 1;
+> console.log(city, count); // 서울 1
+> ```
+> 💡 `city = "부산"`을 추가하고 저장·실행하면 어떤 에러가 나는지 확인해 보세요(그리고 지우세요).
 
-### 2-2. 원시 타입 7종
+### 2-2. 원시 타입 7가지
+
+**② 쉬운 설명**: JS의 기본 값 종류입니다.
+
+| 타입 | 예시 | 🐍 Python |
+|------|------|-----------|
+| string | `"hi"`, `` `템플릿` `` | `str` |
+| number | `42`, `3.14` (정수/실수 구분 없음!) | `int`+`float` 합침 |
+| boolean | `true`, `false` | `True`/`False` (⚠️ 소문자!) |
+| null | `null` | `None`과 비슷 |
+| undefined | `undefined` | (대응 없음) |
+| bigint | `10n` | 큰 정수 (거의 안 씀) |
+| symbol | `Symbol()` | (거의 안 씀) |
+
+⚠️ **함정 3개**:
+1. `true`/`false`는 **소문자** (Python은 `True`). `null`도 소문자.
+2. number는 **정수/실수 구분이 없습니다.** `1`도 `1.0`도 다 number예요.
+3. 그래서 `0.1 + 0.2`가 `0.3`이 **아닙니다** (부동소수점). 🐍 Python도 똑같은 현상이 있어요.
+
+> ⌨️ **미니 실습** — `01-variables.js`
+> ```js
+> console.log(0.1 + 0.2);          // 0.30000000000000004
+> console.log(typeof 42);          // "number"
+> console.log(typeof "hi");        // "string"
+> console.log(typeof true);        // "boolean"
+> ```
+> `typeof`는 값의 타입을 문자열로 알려주는 연산자입니다(🐍 `type()` 비슷).
+
+### 2-3. `null` vs `undefined` (JS 특유의 함정)
+
+**① 왜 헷갈리나**: Python엔 "없음"이 `None` 하나인데, JS엔 **둘**입니다.
+**② 구분**:
+- `undefined` = "아직 값이 안 정해짐" (변수를 선언만 하고 값을 안 줌, 없는 객체 속성 등) — **시스템이 주는 '없음'**
+- `null` = "의도적으로 비움" — **개발자가 넣는 '없음'**
+
+📖 설명용
 
 ```js
-const s = "hello"; // string
-const n = 42; // number (정수/실수 구분 없음!)
-const b = true; // boolean
-const u = undefined; // undefined
-const nul = null; // null
-const big = 9007199254740993n; // bigint (뒤에 n)
-const sym = Symbol("id"); // symbol (거의 안 씀)
-
-console.log(typeof s, typeof n, typeof b); // string number boolean
+let a;                 // 선언만 → a는 undefined
+const obj = {};
+console.log(obj.name); // 없는 속성 → undefined
+const b = null;        // 내가 "비어있음"을 명시
 ```
 
-🐍 **가장 큰 차이**: 파이썬은 `int`와 `float`가 분리돼 있지만, **JS의 `number`는 하나**입니다. `1`도 `1.0`도 전부 `number`.
+⚠️ **악명 높은 버그**: `typeof null`은 `"object"`를 반환합니다(`"null"`이 아니라). JS 초창기의 버그가 하위호환 때문에 지금까지 남은 거예요. 그냥 "그런 게 있다"고 알아두세요.
+
+### 2-4. `===` vs `==` (무조건 `===`)
+
+**① 왜 중요**: `==`는 타입을 멋대로 바꿔서 비교하기 때문에 조용한 버그의 원흉입니다.
+**② 규칙**: **항상 `===`(엄격한 같음)와 `!==`를 쓰세요.** `==`는 잊어버려도 됩니다.
+**③ 🐍**: Python의 `==`는 안전하지만, JS의 `==`는 위험합니다. JS에서 Python의 `==`에 해당하는 안전한 비교는 `===`예요.
+
+📖 설명용 — `==`가 왜 위험한지 (읽기만)
 
 ```js
-console.log(10 / 3); // 3.3333333333333335  (파이썬의 / 와 같음)
-console.log(Math.floor(10 / 3)); // 3  (파이썬의 // 대응)
-console.log(10 % 3); // 1  (나머지, 파이썬과 동일)
-console.log(2 ** 10); // 1024  (거듭제곱, 파이썬과 동일)
+console.log(0 == "");      // true  (?!) — 타입을 바꿔 비교
+console.log(0 == "0");     // true  (?!)
+console.log("" == "0");    // false (?!) — 앞 둘과 모순
+console.log(0 === "");     // false  ← 이게 우리가 원하는 결과
 ```
 
-### 2-3. `null` vs `undefined` (⚠️ Day 0에서 예고한 함정)
+### 2-5. truthy / falsy
 
-파이썬은 `None` 하나지만, JS는 **비어있음을 나타내는 값이 둘**입니다.
+**② 쉬운 설명**: `if`문 등에서 boolean이 아닌 값도 참/거짓으로 취급됩니다.
+- **falsy(거짓 취급) 6가지**: `false`, `0`, `""`(빈 문자열), `null`, `undefined`, `NaN`
+- 나머지는 전부 truthy (예: `"0"`, `[]`, `{}`는 모두 truthy!)
+
+⚠️ 🐍 Python에서 `[]`, `{}`는 falsy지만, **JS에서 빈 배열·빈 객체는 truthy**입니다. 큰 차이니 주의!
+
+> ⌨️ **미니 실습** — `01-variables.js`
+> ```js
+> if ([]) console.log("빈 배열도 참!"); // 출력됨 (Python과 다름)
+> if ("") console.log("안 나옴");        // 빈 문자열은 거짓 → 출력 안 됨
+> ```
+
+### 2-6. 템플릿 리터럴 (문자열 조합)
+
+**② 쉬운 설명**: 백틱(`` ` ``)으로 감싸고 `${...}` 안에 값을 넣습니다. 🐍 Python의 f-string(`f"{x}"`)과 똑같아요.
+
+> ⌨️ **미니 실습** — `01-variables.js`
+> ```js
+> const model = "GPT";
+> const acc = 0.97;
+> console.log(`모델 ${model}의 정확도는 ${acc * 100}%`);
+> // 모델 GPT의 정확도는 97%
+> ```
+
+### ✅ 세션 2 연습문제 (풀고 정답 확인)
+
+⌨️ 문제 — `01-variables.js` 하단에 작성
+1. (쉬움) `price`에 12000을 `const`로, `qty`에 3을 담고, 템플릿 리터럴로 `"총액: 36000원"`을 출력하라.
+2. (보통) 아래가 `false`인지 `true`인지 **먼저 예상**하고, 출력해 확인하라: `0 === false`, `"" === false`, `null === undefined`.
+
+✅ 정답
 
 ```js
-let un; // 선언만 하고 값 없음 → undefined ("아직 값 안 넣음")
-let nu = null; // 명시적으로 "비었다"고 지정 → null
+// 1
+const price = 12000;
+const qty = 3;
+console.log(`총액: ${price * qty}원`); // 총액: 36000원
 
-console.log(un); // undefined
-console.log(nu); // null
-console.log(typeof un); // "undefined"
-console.log(typeof nu); // "object"   ⚠️ 유명한 역사적 버그(고쳐지지 못함)
+// 2 (셋 다 false! === 는 타입까지 보므로)
+console.log(0 === false);        // false (number vs boolean)
+console.log("" === false);       // false (string vs boolean)
+console.log(null === undefined); // false (서로 다른 타입)
 ```
-
-💡 **실전 규칙**:
-- `undefined` = 시스템이 "값이 없다"고 자동으로 준 상태 (선언만 함, 함수가 return 안 함 등)
-- `null` = 개발자가 "의도적으로 비웠다"고 넣는 값
-- 🐍 파이썬 `None`에 해당하는 "내가 의도적으로 비운 값"은 보통 **`null`**을 씁니다.
-
-### 2-4. 템플릿 리터럴 & 문자열 메서드
-
-```js
-const name = "Kim";
-const age = 30;
-
-// 템플릿 리터럴 (백틱 ` `) — 파이썬 f-string에 해당
-const msg = `${name}님은 ${age}살, 내년엔 ${age + 1}살`;
-console.log(msg);
-
-// 문자열 메서드
-console.log("  hi  ".trim()); // "hi"       (파이썬 .strip())
-console.log("a,b,c".split(",")); // ["a","b","c"]  (파이썬과 동일)
-console.log("hello".toUpperCase()); // "HELLO"    (파이썬 .upper())
-console.log("hello".includes("ell")); // true      (파이썬 "ell" in "hello")
-console.log("hello".replace("l", "L")); // "heLlo"  ⚠️ 첫 번째만 바뀜
-```
-
-🐍 **f-string → 백틱**: `f"{name}"` → `` `${name}` ``. 백틱을 쓰는 것과 `${...}` 문법이 핵심입니다. (일반 따옴표 `"..."` 안에서는 `${}`가 안 먹습니다.)
-
-### 2-5. `==` vs `===`, truthy/falsy
-
-⚠️ **JS에서 가장 유명한 함정.** `==`는 타입을 맞춰서 비교(암묵적 변환), `===`는 타입까지 엄격 비교합니다.
-
-```js
-console.log(0 == "0"); // true   ⚠️ 문자열 "0"을 숫자로 변환해서 비교
-console.log(0 === "0"); // false  타입이 다르므로
-console.log(null == undefined); // true
-console.log(null === undefined); // false
-```
-
-💡 **철칙: 항상 `===`, `!==`를 쓰세요.** `==`는 예측 불가라 실무에서 거의 금지입니다. (ESLint가 잡아주기도 합니다.)
-
-**truthy / falsy** — `if`에서 자동으로 boolean 취급되는 값들:
-
-```js
-// falsy (거짓 취급): false, 0, "", null, undefined, NaN, 0n
-// 그 외 전부 truthy
-
-if ("hello") console.log("문자열은 truthy");
-if (0) console.log("안 나옴");
-```
-
-⚠️ **파이썬과 다른 결정적 함정**: 빈 배열/객체는 **truthy**입니다!
-
-```js
-if ([]) console.log("빈 배열도 truthy!"); // ✅ 출력됨
-if ({}) console.log("빈 객체도 truthy!"); // ✅ 출력됨
-
-// 🐍 파이썬: if []: 와 if {}: 는 False (빈 컨테이너는 falsy)
-// JS에서 "비었나?"를 확인하려면:
-const emptyArr = [];
-if (emptyArr.length === 0) console.log("배열이 비었음"); // 이렇게 명시적으로
-```
-
-### ✅ 세션 2 체크
-- [x] `const` 기본, `let`은 바뀔 때만
-- [x] `number`는 int/float 구분 없음을 이해
-- [x] `null`과 `undefined`의 차이를 말로 설명 가능
-- [x] 템플릿 리터럴(백틱)로 문자열 조립
-- [x] `===`만 쓰기, "빈 배열은 truthy" 함정 인지
 
 ---
 
 ## 3. 세션 3 (오후) — 함수
 
-> 새 파일 `03-functions.js`.
+`02-functions.js` 파일에 작성합니다.
 
-### 3-1. 함수 정의 세 가지 방식
+### 3-1. 함수를 만드는 3가지 방법
+
+**① 왜 3개나?**: 역사적 이유로 여러 방식이 있는데, **현대 JS는 대부분 화살표 함수**를 씁니다. 나머지 둘은 "읽을 줄만" 알면 됩니다.
+
+📖 설명용 — 셋 다 같은 일을 함
 
 ```js
-// 1. 함수 선언문 (hoisting: 정의 전에 호출 가능)
-function add(a, b) {
+// (A) 함수 선언식 — 옛날부터 있던 방식
+function addA(a, b) {
   return a + b;
 }
 
-// 2. 함수 표현식 (변수에 함수를 담음)
-const sub = function (a, b) {
-  return a - b;
+// (B) 함수 표현식 — 함수를 값으로 변수에 담음
+const addB = function (a, b) {
+  return a + b;
 };
 
-// 3. 화살표 함수 ⭐ 모던 JS의 기본
-const mul = (a, b) => a * b;
-
-console.log(add(2, 3), sub(5, 2), mul(4, 3)); // 5 3 12
-```
-
-🐍 파이썬은 `def`(선언)와 `lambda`(간단 표현식) 둘뿐이지만, JS는 세 가지가 있고 **실무에선 화살표 함수가 압도적으로 많습니다.**
-
-### 3-2. 화살표 함수 자세히 (≈ `lambda`의 확장판)
-
-```js
-// 인자 1개 → 괄호 생략 가능
-const square = (x) => x * x;
-
-// 본문이 한 줄이면 return 생략 (암묵적 반환)
-const double = (x) => x * 2;
-
-// 본문이 여러 줄이면 { }와 return 필요
-const describe = (x) => {
-  const label = x > 0 ? "양수" : "음수 또는 0";
-  return `${x}는 ${label}`;
+// (C) 화살표 함수 ⭐ — 현대 JS의 기본
+const addC = (a, b) => {
+  return a + b;
 };
 
-// 객체를 반환할 땐 () 로 감싸기 ⚠️ (안 그러면 {}를 코드블록으로 오해)
-const toObj = (x) => ({ value: x });
-
-console.log(square(5), double(5)); // 25 10
-console.log(describe(3)); // "3는 양수"
-console.log(toObj(7)); // { value: 7 }
+// (C-축약) 한 줄이면 중괄호·return 생략 가능
+const addD = (a, b) => a + b;
 ```
 
-🐍 파이썬 `lambda x: x*x`는 한 줄만 가능하지만, JS 화살표 함수는 **여러 줄 본문도 가능**해서 사실상 모든 함수를 대체합니다. `lambda`처럼 "간단한 콜백"에도 쓰고, 일반 함수에도 씁니다.
+**③ 🐍 Python 다리 + JS 자체 설명**: Python의 `def`는 (A)에, `lambda`는 (C)에 가깝습니다. 단 **JS 화살표 함수는 `lambda`와 달리 여러 줄·복잡한 로직도 다 담을 수 있어요.** JS에서는 "거의 모든 함수를 화살표로" 쓴다고 보면 됩니다.
 
-💡 로드맵에서 "`this` 바인딩은 이해만 하고 깊게 안 판다"고 한 이유가 여기 있어요. 화살표 함수는 `this` 함정을 자동으로 피해줍니다. 지금은 **"함수는 그냥 화살표로 쓴다"**만 기억하세요.
+⚠️ **함정 — 축약형의 암묵적 return**: `(a, b) => a + b`는 `a + b`를 **자동으로 return**합니다. 하지만 중괄호를 쓰면 `=> { return a + b; }`처럼 **`return`을 직접 써야** 해요. 중괄호 넣고 `return` 빼먹는 실수가 아주 흔합니다.
 
-### 3-3. 기본값 · rest · spread
+> ⌨️ **미니 실습** — `02-functions.js`, 실행 `node 02-functions.js`
+> ```js
+> const square = (n) => n * n;
+> const greet = (name) => `안녕, ${name}!`;
+> console.log(square(5));      // 25
+> console.log(greet("광명"));  // 안녕, 광명!
+> ```
+
+### 3-2. 기본값 · 나머지(rest) · 전개(spread)
+
+**② 쉬운 설명**: Python에 있는 것들과 거의 1:1입니다.
+- 기본값 매개변수: `(x = 10) => ...` (🐍 `def f(x=10)`)
+- 나머지 매개변수 `...args`: 여러 인자를 배열로 모음 (🐍 `*args`)
+- 전개 `...`: 배열/객체를 펼침 (🐍 언패킹 `*`, `**`)
+
+> ⌨️ **미니 실습** — `02-functions.js`
+> ```js
+> const power = (base, exp = 2) => base ** exp;   // ** = 거듭제곱
+> console.log(power(3));      // 9  (exp 기본값 2)
+> console.log(power(3, 3));   // 27
+>
+> const sum = (...nums) => nums.reduce((a, b) => a + b, 0);
+> console.log(sum(1, 2, 3, 4)); // 10  (reduce는 세션 4에서 자세히)
+>
+> const a = [1, 2];
+> const b = [...a, 3, 4];      // 전개로 새 배열
+> console.log(b);              // [1, 2, 3, 4]
+> ```
+
+⚠️ `...`는 위치에 따라 **뜻이 다릅니다.** 함수 매개변수에서는 "모으기(rest)", 배열/호출부에서는 "펼치기(spread)". 헷갈리지 마세요.
+
+### 3-3. 고차 함수 (함수를 값으로)
+
+**② 쉬운 설명**: 함수를 **인자로 넘기거나 반환**하는 함수. JS에서 매우 흔합니다(특히 세션 4의 배열 메서드).
+**③ 🐍**: Python에서 `map(fn, xs)`에 함수를 넘기는 것과 같은 개념. JS에선 이게 훨씬 일상적입니다.
+
+> ⌨️ **미니 실습** — `02-functions.js`
+> ```js
+> const applyTwice = (fn, x) => fn(fn(x));
+> console.log(applyTwice((n) => n + 3, 10)); // 16 (10→13→16)
+> ```
+
+### ✅ 세션 3 연습문제
+
+⌨️ 문제 — `02-functions.js`
+1. (쉬움) 섭씨→화씨 변환 화살표 함수 `toF`를 축약형으로. 공식: `F = C * 9/5 + 32`. `toF(100)` → 212.
+2. (보통) `makeMultiplier(n)`을 만들어라. 이 함수는 **"n배 해주는 함수를 반환"**한다. `const triple = makeMultiplier(3); triple(5)` → 15.
+
+✅ 정답
 
 ```js
-// 기본값 매개변수 (파이썬과 거의 동일)
-const greet = (name = "world") => `Hello, ${name}!`;
-console.log(greet()); // "Hello, world!"
-console.log(greet("Kim")); // "Hello, Kim!"
+// 1
+const toF = (c) => c * 9 / 5 + 32;
+console.log(toF(100)); // 212
 
-// rest: 나머지 인자를 배열로 모음 (파이썬의 *args)
-const sum = (...nums) => nums.reduce((acc, n) => acc + n, 0);
-console.log(sum(1, 2, 3, 4)); // 10
-
-// spread: 배열을 개별 인자로 펼침 (파이썬의 *arr)
-const numbers = [5, 1, 8, 3];
-console.log(Math.max(...numbers)); // 8
-```
-
-🐍 대응표:
-
-| JS | 🐍 Python |
-|---|---|
-| `(name = "world") =>` | `def f(name="world"):` |
-| `(...nums) =>` (rest) | `def f(*nums):` |
-| `Math.max(...numbers)` (spread) | `max(*numbers)` |
-
-⚠️ `...`는 위치에 따라 의미가 다릅니다: **함수 정의에서는 rest(모으기)**, **호출/배열 안에서는 spread(펼치기)**. 파이썬의 `*`와 완전히 같은 이중성이라 익숙할 거예요.
-
-### 3-4. 고차 함수 감 잡기
-
-함수를 인자로 받거나 반환하는 함수입니다. JS는 이걸 **일상적으로** 씁니다(다음 세션의 `map`/`filter`가 전부 이겁니다).
-
-```js
-// 함수를 인자로 받기
-const applyTwice = (fn, x) => fn(fn(x));
-console.log(applyTwice((n) => n + 3, 10)); // 16
-
-// 함수를 반환하기 (클로저 맛보기 — Day 2에서 자세히)
-const makeMultiplier = (factor) => (x) => x * factor;
+// 2 (함수를 반환하는 함수 = 클로저, Day 2에서 더 배움)
+const makeMultiplier = (n) => (x) => x * n;
 const triple = makeMultiplier(3);
-console.log(triple(10)); // 30
+console.log(triple(5)); // 15
 ```
-
-🐍 파이썬에서도 `functools`나 데코레이터로 하는 것과 같은 개념입니다. JS는 이게 훨씬 일상적이에요.
-
-### ✅ 세션 3 체크
-- [x] 화살표 함수로 함수 작성 (한 줄/여러 줄 모두)
-- [x] 기본값, rest(`...args`), spread(`...arr`) 각각 사용
-- [ ] 고차 함수 1개 작성
-- [x] 객체 반환 시 `() => ({...})` 함정 인지
 
 ---
 
 ## 4. 세션 4 (오후) — 배열 & 객체
 
-> 새 파일 `04-arrays-objects.js`. **이 세션이 실무에서 가장 많이 쓰입니다.**
+`03-arrays-objects.js`에 작성합니다. **오늘의 하이라이트**예요. Python 리스트 컴프리헨션 대신 **메서드 체이닝**에 익숙해지는 게 목표입니다.
 
-### 4-1. 배열 메서드 (파이썬 컴프리헨션의 대체)
+### 4-1. 배열 기본 & 핵심 메서드
 
-🐍 파이썬은 리스트 컴프리헨션이 강력하지만, **JS는 메서드 체이닝**으로 같은 일을 합니다. 이 전환이 오늘의 핵심 근육입니다.
+**② 쉬운 설명**: 배열은 🐍 Python 리스트와 거의 같습니다. `[1, 2, 3]`. 인덱스도 0부터.
 
+가장 많이 쓰는 5개를 5단계로 봅니다. 공통점: **원본을 바꾸지 않고 새 배열/값을 반환**합니다(순수 함수).
+
+**`map` — 각 원소를 변환**
+🐍 `[x*2 for x in xs]` 또는 `map(fn, xs)`.
+
+📖 설명용
 ```js
-const nums = [1, 2, 3, 4, 5];
-
-// map: 각 요소 변환 (파이썬 [n*2 for n in nums])
-console.log(nums.map((n) => n * 2)); // [2, 4, 6, 8, 10]
-
-// filter: 조건 통과만 (파이썬 [n for n in nums if n%2===0])
-console.log(nums.filter((n) => n % 2 === 0)); // [2, 4]
-
-// reduce: 하나로 접기 (파이썬 sum() / functools.reduce)
-console.log(nums.reduce((acc, n) => acc + n, 0)); // 15  (0은 초깃값)
-
-// find: 조건 맞는 첫 요소 (파이썬 next(n for n in nums if n>3))
-console.log(nums.find((n) => n > 3)); // 4
-
-// some / every: 하나라도 / 전부 (파이썬 any() / all())
-console.log(nums.some((n) => n > 4)); // true
-console.log(nums.every((n) => n > 0)); // true
-
-// forEach: 순회만 (반환값 없음, 파이썬 for 루프)
-nums.forEach((n) => console.log(n));
+const nums = [1, 2, 3];
+const doubled = nums.map((n) => n * 2); // [2, 4, 6]
 ```
 
-**메서드 체이닝** — 파이썬 컴프리헨션 한 줄을 JS는 이렇게 이어붙입니다:
-
+**`filter` — 조건에 맞는 것만 남김**
+🐍 `[x for x in xs if cond]`.
 ```js
-// 🐍 파이썬: [n*n for n in nums if n % 2 === 0]  → 짝수만 제곱
-// 🟨 JS:
-const result = nums.filter((n) => n % 2 === 0).map((n) => n * n);
-console.log(result); // [4, 16]
+const evens = nums.filter((n) => n % 2 === 0); // [2]
 ```
 
-💡 처음엔 컴프리헨션보다 장황해 보이지만, 체이닝은 **읽는 순서 = 실행 순서**라 복잡해질수록 오히려 명확합니다. `filter → map → reduce`를 물 흐르듯 이어보세요.
-
-### 4-2. 객체 리터럴 & 구조 분해 할당
-
-JS의 객체(`{}`)는 파이썬의 **딕셔너리**에 가깝습니다(단, 키가 문자열이고 점 표기법 `.`으로 접근).
-
+**`reduce` — 하나의 값으로 접기(누적)**
+🐍 `functools.reduce`. 두 번째 인자가 초깃값입니다.
 ```js
-const user = { name: "Kim", age: 30, city: "Seoul" };
-
-// 접근 (파이썬 user["name"] 대신 점 표기법)
-console.log(user.name); // "Kim"
-console.log(user["age"]); // 30  (대괄호도 됨)
-
-// 구조 분해 할당 (destructuring) ⭐ 매우 자주 씀
-const { name, age } = user;
-console.log(name, age); // "Kim" 30
-
-// 이름 바꾸기 + 기본값
-const { city, country = "KR" } = user;
-console.log(city, country); // "Seoul" "KR"
-
-// 배열도 구조 분해 (파이썬 튜플 언패킹)
-const [first, second] = [10, 20];
-console.log(first, second); // 10 20
+const total = nums.reduce((acc, n) => acc + n, 0); // 6
+// acc=누적값, n=현재원소, 0=초깃값
 ```
 
-🐍 배열 구조 분해 `const [a, b] = arr`는 파이썬 `a, b = arr`와 똑같습니다. 객체 구조 분해는 파이썬엔 직접 대응이 없는 JS의 편의 기능인데, **React/Next.js에서 매 순간 나오니** 지금 꼭 익혀두세요.
-
-### 4-3. 전개 연산자 (spread)로 복사/병합
-
+**`find` — 조건 맞는 첫 원소** / **`some`·`every` — 존재/전체 검사**
 ```js
-// 객체 병합 (파이썬 {**base, "c": 3})
-const base = { a: 1, b: 2 };
-const extended = { ...base, c: 3 }; // { a: 1, b: 2, c: 3 }
-
-// 객체 일부 덮어쓰기 (불변 업데이트 — React에서 핵심 패턴)
-const updated = { ...user, age: 31 }; // age만 바꾼 새 객체
-console.log(updated); // { name: "Kim", age: 31, city: "Seoul" }
-
-// 배열 병합/복사 (파이썬 [*a, *b])
-const a = [1, 2];
-const b = [3, 4];
-console.log([...a, ...b]); // [1, 2, 3, 4]
+nums.find((n) => n > 1);        // 2  (첫 번째)
+nums.some((n) => n > 2);        // true  (하나라도 있나? 🐍 any())
+nums.every((n) => n > 0);       // true  (전부 그런가? 🐍 all())
 ```
 
-💡 **`{ ...user, age: 31 }` 패턴을 눈에 익히세요.** "원본을 안 바꾸고, 일부만 수정한 새 객체를 만든다"는 이 불변 업데이트가 **React 상태 관리의 심장**입니다. Day 4에서 다시 만납니다.
+⚠️ **함정 — `forEach`는 값을 반환하지 않습니다**: 단순 반복(부수효과)용이에요. 변환 결과가 필요하면 `map`을 쓰세요.
 
-### ✅ 세션 4 체크
-- [x] `map`/`filter`/`reduce`/`find`/`some`/`every` 각각 사용
-- [x] `filter().map()` 체이닝 작성
-- [x] 객체/배열 구조 분해로 값 꺼내기
-- [x] `{ ...obj, key: val }`로 불변 업데이트
+> ⌨️ **미니 실습** — `03-arrays-objects.js`, 실행 `node 03-arrays-objects.js`
+> ```js
+> const scores = [88, 92, 45, 70, 99];
+> const passed = scores.filter((s) => s >= 60);
+> const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+> console.log("합격:", passed);         // 합격: [ 88, 92, 70, 99 ]
+> console.log("평균:", avg);            // 평균: 78.8
+> ```
+
+### 4-2. 메서드 체이닝 (Python 컴프리헨션의 대체)
+
+**② 쉬운 설명**: `map`/`filter`가 새 배열을 반환하므로 **점(.)으로 이어붙일 수 있습니다.**
+🐍 Python이라면 `[x*2 for x in xs if x > 2]`로 한 줄 처리할 걸, JS는 체이닝으로 표현합니다.
+
+> ⌨️ **미니 실습**
+> ```js
+> const result = [1, 2, 3, 4, 5]
+>   .filter((n) => n > 2)   // [3, 4, 5]
+>   .map((n) => n * 10);    // [30, 40, 50]
+> console.log(result);      // [ 30, 40, 50 ]
+> ```
+
+### 4-3. 객체 (딕셔너리와 비슷하지만…)
+
+**② 쉬운 설명**: `{ 키: 값 }` 형태. 🐍 Python 딕셔너리와 비슷하지만 **키에 따옴표를 보통 안 붙이고**, 값 접근을 `obj.key`(점)로 많이 합니다.
+
+📖 설명용
+```js
+const user = { name: "광명", age: 30 };
+console.log(user.name);      // "광명"  (점 접근)
+console.log(user["age"]);    // 30      (대괄호 접근도 가능)
+user.job = "ML";             // 속성 추가
+```
+
+⚠️ 🐍 Python 딕셔너리는 `d["key"]`가 기본이고 없는 키는 `KeyError`. **JS 객체는 없는 키에 접근하면 에러 대신 `undefined`**를 줍니다(세션 2에서 본 그 `undefined`).
+
+### 4-4. 구조 분해 할당 (destructuring) ⭐
+
+**① 왜 중요**: React·Next.js 코드가 이걸 **엄청나게** 씁니다. 지금 익혀두면 나중이 편해요.
+**② 쉬운 설명**: 배열/객체에서 값을 **한 번에 여러 변수로 꺼내기**.
+**③ 🐍**: Python의 언패킹 `a, b = [1, 2]`나 `name = d["name"]`을 한 방에 하는 것.
+
+> ⌨️ **미니 실습**
+> ```js
+> // 배열 구조 분해
+> const [first, second] = [10, 20];
+> console.log(first, second);        // 10 20
+>
+> // 객체 구조 분해 (키 이름으로 꺼냄)
+> const user = { name: "광명", age: 30 };
+> const { name, age } = user;
+> console.log(name, age);            // 광명 30
+> ```
+
+💡 **왜 중요한지 미리보기**: Day 4에서 React 컴포넌트가 `function Chat({ messages, onSend }) { ... }`처럼 **매개변수 자리에서 바로 객체 구조 분해**를 씁니다. 오늘 손에 익혀두세요.
+
+### 4-5. 객체 전개 (spread) — 불변 업데이트
+
+**① 왜 중요**: React에서 **상태를 바꿀 때 "원본을 수정하지 않고 새 객체를 만드는"** 패턴이 필수입니다. 그 기초가 객체 전개예요.
+**② 쉬운 설명**: `{ ...old, 바꿀키: 새값 }` = 기존 걸 복사한 새 객체에 일부만 덮어쓰기.
+
+> ⌨️ **미니 실습**
+> ```js
+> const user = { name: "광명", age: 30 };
+> const older = { ...user, age: 31 };   // 복사 + age만 교체
+> console.log(user);   // { name: '광명', age: 30 }  (원본 그대로!)
+> console.log(older);  // { name: '광명', age: 31 }
+> ```
+
+⚠️ 이 "원본 안 건드리고 새 걸 만든다(불변성)"는 감각이 Day 4 `useState`의 핵심입니다. 지금 확실히 잡아두세요.
+
+### ✅ 세션 4 연습문제
+
+⌨️ 문제 — `03-arrays-objects.js`
+1. (보통) `products = [{name:"A", price:1000}, {name:"B", price:3000}, {name:"C", price:500}]`에서, **가격 1000 이상인 상품의 이름만** 배열로 뽑아라. (`filter` + `map` 체이닝)
+2. (보통) 같은 `products`의 **총 가격 합**을 `reduce`로 구하라.
+
+✅ 정답
+
+```js
+const products = [
+  { name: "A", price: 1000 },
+  { name: "B", price: 3000 },
+  { name: "C", price: 500 },
+];
+
+// 1
+const names = products
+  .filter((p) => p.price >= 1000)
+  .map((p) => p.name);
+console.log(names); // [ 'A', 'B' ]
+
+// 2
+const totalPrice = products.reduce((sum, p) => sum + p.price, 0);
+console.log(totalPrice); // 4500
+```
 
 ---
 
-## 5. 통합 실습 — CLI 데이터 처리 스크립트 ⭐
+## 5. 종합 실습 — "모델 성능 리포트" 스크립트 ⭐
 
-오늘 배운 걸 한 파일에 모읍니다. **ML 개발자에게 익숙한 소재**로 갑니다: 모델 실험 기록을 변환·집계하는 스크립트. (파이썬 + pandas로 하던 걸 순수 JS로)
+오늘 배운 걸 한 번에 씁니다. ML 개발자다운 예제로, 모델 실험 기록을 가공해 리포트를 뽑습니다.
 
-`exercise/model-report.js`를 만드세요:
+⌨️ 실습 — `practice/day1/exercise/model-report.js` 새 파일
 
 ```js
-// exercise/model-report.js
-// 모델 실험 기록을 변환·집계하는 리포트 스크립트
-
-const runs = [
-  { name: "baseline", accuracy: 0.81, params: 1_200_000 },
-  { name: "resnet", accuracy: 0.93, params: 25_000_000 },
-  { name: "tiny-cnn", accuracy: 0.76, params: 300_000 },
-  { name: "vit", accuracy: 0.95, params: 86_000_000 },
+const experiments = [
+  { model: "baseline", acc: 0.71, params: 1_200_000, ok: true },
+  { model: "resnet-lite", acc: 0.86, params: 5_400_000, ok: true },
+  { model: "broken-run", acc: 0.0, params: 5_400_000, ok: false },
+  { model: "transformer-s", acc: 0.93, params: 22_000_000, ok: true },
 ];
 
-// 1) accuracy 0.9 이상만 추리기
-const strong = runs.filter((r) => r.accuracy >= 0.9);
+// 1) 실패한 실험 제외
+const valid = experiments.filter((e) => e.ok);
 
-// 2) "이름: 정확도%" 형태 문자열로 변환
-const labels = strong.map(
-  (r) => `${r.name}: ${(r.accuracy * 100).toFixed(1)}%`
+// 2) 정확도 내림차순 정렬 (sort는 원본을 바꾸므로 복사 후 정렬)
+const ranked = [...valid].sort((a, b) => b.acc - a.acc);
+
+// 3) 보기 좋은 문자열로 변환
+const lines = ranked.map(
+  (e, i) => `${i + 1}위 ${e.model}: acc ${(e.acc * 100).toFixed(1)}%`
 );
 
-// 3) 전체 평균 정확도
-const avgAccuracy =
-  runs.reduce((acc, r) => acc + r.accuracy, 0) / runs.length;
+// 4) 집계
+const best = ranked[0];
+const avgAcc =
+  valid.reduce((sum, e) => sum + e.acc, 0) / valid.length;
 
-// 4) 가장 정확한 모델 찾기
-const best = runs.reduce((a, b) => (b.accuracy > a.accuracy ? b : a));
-
-// 5) 리포트 출력
-console.log("=== 모델 리포트 ===");
-console.log("강한 모델(≥0.9):", labels);
-console.log("평균 정확도:", avgAccuracy.toFixed(3));
-console.log("최고 모델:", `${best.name} (${(best.accuracy * 100).toFixed(1)}%)`);
+console.log("=== 유효 실험 순위 ===");
+lines.forEach((line) => console.log(line));
+console.log(`\n최고 모델: ${best.model}`);
+console.log(`평균 정확도: ${(avgAcc * 100).toFixed(1)}%`);
 ```
 
-실행:
+⌨️ 실행
+
 ```bash
 node exercise/model-report.js
 ```
 
-기대 출력:
+✅ 기대 출력
+
 ```
-=== 모델 리포트 ===
-강한 모델(≥0.9): [ 'resnet: 93.0%', 'vit: 95.0%' ]
-평균 정확도: 0.863
-최고 모델: vit (95.0%)
+=== 유효 실험 순위 ===
+1위 transformer-s: acc 93.0%
+2위 resnet-lite: acc 86.0%
+3위 baseline: acc 71.0%
+
+최고 모델: transformer-s
+평균 정확도: 83.3%
 ```
 
-💡 `1_200_000`처럼 숫자에 `_`를 넣어 가독성을 줄 수 있습니다(파이썬과 동일). `.toFixed(1)`은 소수 자릿수 고정(문자열 반환).
+💡 새로 나온 것 2개: 숫자의 `_`(예: `1_200_000`)는 **자릿수 구분자**(🐍 Python과 동일). `.toFixed(1)`은 소수 첫째 자리 반올림 문자열이에요. `\n`은 줄바꿈.
+⚠️ `sort`는 **원본 배열을 직접 바꿉니다**(map/filter와 다름). 그래서 `[...valid]`로 복사 후 정렬했어요. 또 `sort`는 기본이 문자열 정렬이라, 숫자는 `(a, b) => b.acc - a.acc`처럼 비교 함수를 꼭 줘야 합니다.
 
-### 🎯 추가 연습 문제 3개 (스스로 풀어보기)
+---
 
-같은 `runs` 데이터로 아래를 구현해보세요. 막히면 힌트를 보고, 그래도 막히면 저에게 "Day 1 실습 문제 N번 힌트/풀이 알려줘"라고 물어보세요.
+## 6. 디버깅 실습 — 버그를 직접 잡아보기
 
-**문제 1.** 파라미터 수가 100만 개(`1_000_000`) 미만인 "경량 모델"의 이름만 배열로 뽑기.
-> 힌트: `filter` → `map`
+일부러 버그가 있는 코드입니다. **읽고 고쳐 보세요.** (정답은 아래)
 
-**문제 2.** 모든 모델의 총 파라미터 합을 구하고, "총 112.5M params" 형태로 출력하기.
-> 힌트: `reduce`로 합 → `/ 1_000_000` → 템플릿 리터럴 + `.toFixed(1)`
+⌨️ 실습 — `practice/day1/debug.js`에 그대로 입력하고 실행
 
-**문제 3.** 정확도가 0.9 이상이면서 파라미터가 5000만 미만인 "효율적인 강한 모델"이 하나라도 있는지 `true`/`false`로 판정하기.
-> 힌트: `some`에 조건 두 개(`&&`)
+```js
+const nums = [4, 8, 15, 16, 23, 42];
 
-### 최종 검증
+// 목표: 20보다 큰 값들의 합을 구하기
+const bigSum = nums
+  .filter((n) => n > 20)
+  .reduce((acc, n) => acc + n);
+
+console.log(bigSum);
+```
+
+실행하면 결과가 나오긴 하는데… 값이 이상하거나, 배열이 비면 에러가 날 수 있습니다. **무엇이 문제일까요?** (힌트: `reduce`의 두 번째 인자)
+
+<details><summary>정답 보기</summary>
+
+`reduce`에 **초깃값이 없습니다.** 초깃값 없이 `reduce`를 쓰면 배열의 첫 원소를 초깃값으로 삼는데, 만약 `filter` 결과가 **빈 배열이면 `TypeError`**가 납니다("Reduce of empty array with no initial value"). 초깃값 `0`을 넣어 안전하게:
+
+✅ 수정
+
+```js
+const bigSum = nums
+  .filter((n) => n > 20)
+  .reduce((acc, n) => acc + n, 0);   // ← , 0 추가
+
+console.log(bigSum); // 81
+```
+
+교훈: **`reduce`는 항상 초깃값을 주는 습관**을 들이세요.
+</details>
+
+---
+
+## 7. 🎯 오늘 만난 에러 읽는 법
+
+| 에러 메시지 | 뜻 | 🐍 대응 | 해결 |
+|-------------|-----|---------|------|
+| `ReferenceError: x is not defined` | 없는 변수 사용 | `NameError` | 오타·선언 누락 확인 |
+| `TypeError: Assignment to constant variable` | `const`를 재할당 | (없음) | `let`으로 바꾸거나 재할당 제거 |
+| `TypeError: xxx.map is not a function` | 배열이 아닌데 배열 메서드 호출 | `AttributeError` | 그 값이 정말 배열인지 확인(`Array.isArray`) |
+| `Reduce of empty array with no initial value` | 빈 배열 + 초깃값 없는 reduce | (없음) | `reduce(..., 0)` 초깃값 |
+
+💡 에러가 뜨면 **첫 줄 + 파일:줄번호**부터 보세요. 대부분 거기서 끝납니다.
+
+---
+
+## 8. ✅ Day 1 최종 체크리스트
+
+- [ ] 저장 시 Prettier 자동 포맷 + ESLint 경고 동작
+- [ ] `const`/`let` 구분 사용, `var` 안 씀
+- [ ] `===`만 사용 (`==` 안 씀), truthy/falsy 6개 falsy 기억
+- [ ] `null` vs `undefined` 차이 설명 가능
+- [ ] 화살표 함수(축약형 포함) 작성, 암묵적 return 함정 이해
+- [ ] `map`/`filter`/`reduce`/`find`/`some`/`every` 각각 사용
+- [ ] 구조 분해 + 객체 전개(불변 업데이트) 사용
+- [ ] `model-report.js` 기대 출력 재현
+- [ ] 디버깅 실습에서 `reduce` 초깃값 버그를 스스로 고침
+
+---
+
+## 9. git 커밋 (오늘 마무리)
+
+⌨️ 실습 — 저장소 루트에서
+
 ```bash
-pnpm lint      # ESLint 경고 0개
-pnpm format    # Prettier 포맷 통과
+# .gitignore에 node_modules가 있는지 먼저 확인 (없으면 추가)
+echo "node_modules/" >> .gitignore
+
+git add .
+git commit -m "Day 1: 개발환경(ESLint/Prettier) + JS 코어 문법 실습"
 ```
 
----
-
-## 6. ✅ Day 1 완료 체크리스트
-
-아래가 전부 통과하면 Day 2 준비 완료입니다.
-
-- [ ] `practice/day1/`에 `package.json`, `eslint.config.js`, `.prettierrc`, `.vscode/settings.json` 완비
-- [ ] **저장 시 자동 포맷**이 실제로 동작함
-- [ ] `pnpm lint`, `pnpm format`이 돌아감
-- [ ] `const`/`let` 구분, `===`만 사용
-- [ ] `null` vs `undefined`, "빈 배열은 truthy" 함정 설명 가능
-- [ ] 화살표 함수 + 기본값/rest/spread 사용
-- [ ] `map`/`filter`/`reduce` 각각 예시 작성
-- [ ] 구조 분해 + `{ ...obj }` 불변 업데이트 사용
-- [ ] `model-report.js` 실행 성공 + 추가 문제 3개 시도
+💡 커밋 메시지는 "무엇을 했는지" 한 줄로. 매일 이렇게 남기면 나중에 회고가 편합니다.
 
 ---
 
-## 7. 자주 나오는 함정 정리 (⚠️)
+## 10. Day 2 미리보기
 
-| 증상 | 원인 | 해결 |
-|---|---|---|
-| `0 == "0"`이 `true`라 로직이 꼬임 | `==`의 암묵적 타입 변환 | 항상 `===` 사용 |
-| `if (arr)`가 빈 배열에도 참 | JS에선 `[]`, `{}`가 truthy | `arr.length === 0`으로 명시 확인 |
-| 화살표 함수로 객체 반환 시 에러 | `x => {a:1}`을 코드블록으로 해석 | `x => ({ a: 1 })`로 괄호 감싸기 |
-| `const` 배열에 `push`가 되네? | `const`는 재할당 금지지 불변 아님 | 정상 동작. 재할당(`arr =`)만 막힘 |
-| ESLint가 `console`을 모른다고 함 | Node 전역 미등록 | `globals.node`를 config에 추가(1-4 참고) |
-| 저장해도 포맷 안 됨 | 포매터 미지정/확장 미설치 | `.vscode/settings.json` 확인, ESLint 서버 재시작 |
-| `import`가 에러남 | `"type": "module"` 누락 | `package.json`에 추가 |
+내일은 **비동기 + 모듈**입니다. 오늘 배운 함수·배열이 곧바로 재료가 돼요.
 
----
+- 스코프·**클로저**(오늘 `makeMultiplier`가 사실 클로저였어요)
+- **이벤트 루프**와 `async/await` (🐍 asyncio와 비교)
+- `fetch`로 진짜 API 호출, `Promise.all` 병렬 처리
+- `import`/`export`로 파일 나누기 (오늘의 `"type": "module"` 이야기)
 
-## 8. 저장소 커밋 & 정리
-
-오늘 실습을 저장소에 남깁니다.
-
-```bash
-# 저장소 루트로 이동
-cd ../..
-
-# node_modules가 무시되는지 먼저 확인 (.gitignore에 node_modules/ 있어야 함)
-git status
-
-# 실습 코드 + 오늘 문서 커밋
-git add practice/day1 docs/Day1.md
-git commit -m "Day 1: JS 개발환경 셋업 + 코어 문법 실습"
-git push
-```
-
-⚠️ `git status`에 `node_modules/`가 잔뜩 보이면 **커밋하지 말고** `.gitignore`에 `node_modules/`를 먼저 추가하세요. 한번 커밋되면 지우기 번거롭습니다.
-
-💡 커밋 메시지 컨벤션은 자유지만, `Day N: 주제` 형태로 통일하면 나중에 히스토리 보기 좋아요.
+💡 시작할 때 로드맵을 붙이고 **"Day 2 상세 자료 만들어줘"**라고 요청하세요.
 
 ---
 
-## 9. Day 2 미리보기
+## 부록 — Python ↔ JS 치트시트 (Day 1분)
 
-Day 1에서 "동기적으로 도는 JS 문법"을 익혔습니다. Day 2는:
+| 개념 | 🐍 Python | 🟨 JavaScript |
+|------|-----------|---------------|
+| 변수 선언 | `x = 3` | `const x = 3;` / `let x = 3;` |
+| 문자열 조합 | `f"{a}"` | `` `${a}` `` |
+| 없음 | `None` | `null` / `undefined` (둘) |
+| 같음 비교 | `==` | `===` (항상 이것) |
+| 참/거짓 | `True`/`False` | `true`/`false` (소문자) |
+| 리스트 변환 | `[f(x) for x in xs]` | `xs.map(f)` |
+| 리스트 필터 | `[x for x in xs if c]` | `xs.filter(fn)` |
+| 누적 | `reduce(fn, xs, 0)` | `xs.reduce(fn, 0)` |
+| 존재/전체 | `any()` / `all()` | `.some()` / `.every()` |
+| 익명 함수 | `lambda x: x+1` | `(x) => x + 1` |
+| 언패킹 | `a, b = xs` | `const [a, b] = xs;` |
+| dict 접근 | `d["k"]` (없으면 에러) | `obj.k` (없으면 `undefined`) |
+| dict 복사+수정 | `{**d, "k": v}` | `{ ...obj, k: v }` |
+| 가변 인자 | `*args` | `...args` |
 
-1. **스코프·클로저** — 오늘 맛본 "함수를 반환하는 함수"를 제대로 파고듭니다.
-2. **비동기 (async/await)** — 🐍 파이썬 `asyncio`와 키워드가 같아 친숙하지만, "이벤트 루프는 항상 1개(싱글 스레드)"라는 차이가 있습니다. `fetch`로 실제 API도 호출합니다.
-3. **모듈 (`import`/`export`)** — 오늘 넣은 `"type": "module"`의 정체를 밝힙니다. 파일을 나누고 합치는 법.
-
-💡 Day 2 시작할 때 로드맵과 이 문서를 붙이고 **"Day 2 세션 1 상세 자료 만들어줘"**라고 요청하면 이어서 만들어 드립니다.
-
----
-
-### 부록 — Python ↔ JS 치트시트 (Day 1 범위)
-
-```
-# 변수
-x = 3.14              →  const x = 3.14;      (안 바뀌면 const)
-count = 0             →  let count = 0;       (바뀌면 let)
-
-# 문자열
-f"{name}: {age}"      →  `${name}: ${age}`    (백틱 사용)
-"a,b".split(",")      →  "a,b".split(",")     (동일)
-s.strip()             →  s.trim()
-s.upper()             →  s.toUpperCase()
-"x" in s              →  s.includes("x")
-
-# 비교
-a == b (값 비교)      →  a === b              (항상 === 사용!)
-
-# 없음
-None                  →  null (의도적) / undefined (자동)
-
-# 함수
-def f(a, b): return a+b        →  const f = (a, b) => a + b;
-lambda x: x*x                  →  (x) => x * x
-def f(name="w")                →  (name = "w") =>
-def f(*args)                   →  (...args) =>
-max(*arr)                      →  Math.max(...arr)
-
-# 배열/리스트
-[n*2 for n in nums]            →  nums.map(n => n * 2)
-[n for n in nums if n>0]       →  nums.filter(n => n > 0)
-sum(nums)                      →  nums.reduce((a, n) => a + n, 0)
-any(n>4 for n in nums)         →  nums.some(n => n > 4)
-all(n>0 for n in nums)         →  nums.every(n => n > 0)
-next(n for n in nums if n>3)   →  nums.find(n => n > 3)
-
-# 딕셔너리/객체
-d = {"a": 1}                   →  const d = { a: 1 };
-d["a"]                         →  d.a  (또는 d["a"])
-a, b = pair                    →  const [a, b] = pair;
-{**base, "c": 3}               →  { ...base, c: 3 }
-[*a, *b]                       →  [...a, ...b]
-```
-
-수고했어요. 도구가 준비됐고 문법의 골격이 손에 붙었습니다 — Day 2에서 비동기와 모듈로 넘어갑니다. 🟨
+오늘도 수고했습니다. 손으로 친 코드가 많을수록 내일이 쉬워집니다. 🟨

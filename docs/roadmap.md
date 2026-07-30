@@ -1,17 +1,53 @@
-# 7일 완성 로드맵 — JavaScript/TypeScript → Next.js → 에이전트/RAG
+# 학습 로드맵 (개정판 v2.1) — JavaScript/TypeScript → Next.js → 에이전트/RAG
 
-> ML 개발자(Python 경험)를 위한 실습 중심 프론트/풀스택 온보딩 계획서
-> 총 56시간 (7일 × 8시간) · VS Code 기준 · 최신 스택(2026)
+> ML 개발자(Python 경험)를 위한 **실습 중심** 프론트/풀스택 온보딩 계획서
+> Day 0~10 (Day 0 몸풀기 + Day 1~9 본과정 + **Day 10 에이전트 캡스톤**) · VS Code 기준 · 최신 스택(2026)
+> 저장소: `github.com/sguys99/nextjs-study`
+
+---
+
+## 📌 개정 요약
+
+v1으로 학습을 마친 뒤 받은 피드백을 반영했습니다. **무엇이, 왜 바뀌었는지**부터 정리합니다.
+
+| # | 받은 피드백 | 반영 |
+|---|-------------|------|
+| 1 | Python 비교는 좋았지만, js/ts/next.js를 모르는 사람에겐 설명이 부족·어려움 | **§7 작성 규칙 신설** — "Python은 알지만 웹은 완전 초보"를 독자 기준으로. 새 용어는 첫 등장 시 정의, Python 비유 뒤에 "JS만 아는 사람용" 설명을 반드시 덧붙임 |
+| 2 | 설명용 코드 / 실습 코드 구분이 안 돼 혼란 | **§7-2 코드 블록 라벨** — `📖 설명용` / `⌨️ 실습` / `✅ 완성본` + 실습은 파일 경로·실행법 필수 |
+| 3 | 실습 코드가 더 많았으면 (특히 js/ts) | **§7-4 실습 밀도** — 개념마다 미니 실습, 세션 끝 문제+정답, 디버깅 실습 |
+| 4 | 개념 설명 보완 | **§7-3 개념 5단계 템플릿** (왜 있나 → 쉬운 설명 → Python 다리+JS 설명 → 최소 예제 → 함정) |
+| 5 | js/ts/next.js 탄생 배경 보완 | **§7-5 배경지식 박스**(`🎯`) 의무화. Day 0에 웹 동작 원리·JS/Node 탄생사 프라이머 신설 |
+| 6 | 마지막 프로젝트에 실제 프레임워크(랭체인/랭그래프) 반영 | **"직접 구현 → 프레임워크 교체" 2단계** — Day 7 RAG 직접구현 → Day 8 LangChain.js, Day 6 도구 → Day 9 LangGraph.js |
+| 7 | Next.js·에이전트 설계 참고 자료 | **§19 참고 자료** — 공식 문서 + 에이전트 설계 레퍼런스 |
+| + | (추가 요청) 에이전트 캡스톤 프로젝트 | **Day 10 캡스톤 신설** — 배운 것을 총동원해 스스로 에이전트 앱 설계·구현 |
+
+### v2 → v2.1 변경점 (프로젝트 구간 확정)
+
+실제 Day 자료를 만들며 프로젝트 구간을 다음과 같이 확정했습니다.
+
+- **Day 6**: 스트리밍 챗봇 + **기본 tool calling** (Vercel AI SDK) — 네이티브 빠른 구현
+- **Day 7**: RAG **직접 구현** (로컬 임베딩 + 손으로 짠 코사인 유사도) — 원리 이해
+- **Day 8**: **LangChain.js** RAG — Day 7을 프레임워크로 교체·대조
+- **Day 9**: **LangGraph.js** 에이전트 + RAG 통합 + 스트리밍 + 배포
+- **Day 10**: **에이전트 캡스톤** (자기주도 프로젝트) ← 신설
+- 임베딩은 **로컬 모델**(`@huggingface/transformers`, `all-MiniLM-L6-v2`)로 확정 — 추가 API 키·비용 0, "전부 로컬"로 원리 학습. (배포 시 호스팅 임베딩으로 교체 가능)
+
+### ⚠️ 큰 구조 원칙
+
+1. **"직접 구현 → 프레임워크"를 두 번**: RAG(Day 7 직접 → Day 8 LangChain), 에이전트(Day 6 AI SDK → Day 9 LangGraph). 손으로 짜본 뒤 프레임워크로 바꿔 **내부가 블랙박스가 아니게** 만든다.
+2. **하나로 이어지는 앱**: Day 4 채팅 UI → Day 5 Next.js 이관 → Day 6 스트리밍 → Day 7~8 RAG → Day 9 LangGraph 에이전트로 **한 앱이 계속 성장**.
+3. **캡스톤으로 마무리**: Day 10에서 배운 전부를 총동원해 **스스로 에이전트 앱을 설계·구현**.
 
 ---
 
 ## 0. 이 문서의 사용법
 
-- 이 문서는 **계획서(로드맵)**입니다. 상세 강의 자료는 아닙니다.
-- 매일 학습 시작 시, 이 문서를 컨텍스트에 주입한 뒤
-  **"Day N의 세션 X 상세 자료 만들어줘"** 형태로 요청하면 됩니다.
-- 각 Day는 `학습 목표 → 세션별 주제 → 실습 → 체크리스트` 구조입니다.
-- `🐍` 표시는 **Python 대비 핵심 차이점**, `💡`는 **제안/팁**입니다.
+- 이 문서는 **계획서(로드맵)**입니다. 상세 강의 자료는 각 `docs/DayN.md`에 있습니다.
+- 매일 학습 시작 시 이 문서를 컨텍스트에 주입하고 **"Day N 상세 자료 만들어줘"**라고 요청하면 **§7 작성 규칙**이 자동 적용됩니다.
+- 각 Day 구조: `학습 목표 → 🎯배경 → 세션별 주제 → 실습 → 체크리스트`.
+- **태그 시스템**:
+  - `🐍` Python 대비 · `💡` 팁 · `⚠️` 함정 · `🎯` 배경지식
+  - `📖` 설명용 코드(읽기만) · `⌨️` 실습 코드(직접 치기) · `✅` 완성본
 
 ---
 
@@ -20,32 +56,25 @@
 | 항목 | 내용 |
 |------|------|
 | 배경 | Python 기반 ML 개발자 (알고리즘·비동기·타입힌트·CLI 익숙) |
-| 새로 배우는 것 | JS/TS 문법, 브라우저/Node 런타임, React 사고방식, Next.js, JS 생태계 배선 |
-| 이미 아는 것 | 변수/함수/클래스/자료구조, 비동기 개념(asyncio), 타입 개념, LLM/임베딩/RAG **개념** |
+| 새로 배우는 것 | JS/TS 문법, 브라우저/Node 런타임, React, Next.js, JS 생태계 배선, LangChain.js/LangGraph.js |
+| 이미 아는 것 | 자료구조, 비동기(asyncio), 타입, LLM/임베딩/RAG/에이전트 **개념**, (아마도) Python LangChain/LangGraph |
 | 도구 | VS Code |
-| 목표 시간 | 하루 8시간 × 7일 |
+| 목표 시간 | 하루 6~8시간 × Day 0~9 + 캡스톤(Day 10, 개방형) |
 
-> 💡 **핵심 관점**: 당신에게 어려운 건 "프로그래밍"이 아니라
-> ① JS/TS 특유의 문법과 함정, ② React의 선언형 렌더링 사고방식,
-> ③ "서버 컴포넌트 vs 클라이언트 컴포넌트" 멘탈 모델입니다.
-> ML/RAG **개념**은 이미 알고 있으니, 프로젝트 단계에서는 **개념이 아니라 JS/TS 배선**에 집중합니다.
+> 💡 **핵심 관점**: 어려운 건 "프로그래밍"이 아니라 ① JS/TS 특유의 문법·함정, ② React 선언형 렌더링, ③ 서버/클라이언트 컴포넌트 멘탈 모델. **웹을 처음 만지는 사람도 따라오도록 설명을 낮춘다.** Python 비유는 다리일 뿐, 다리 건너편(JS/웹) 설명을 생략하지 않는다.
 
 ---
 
 ## 2. 최종 목표 & 산출물
 
-7일 후 다음을 **직접 만들고 이해**한 상태가 됩니다.
+10일 후 다음을 **직접 만들고 이해**한 상태가 됩니다.
 
-1. TypeScript로 타입 안전한 코드를 자신 있게 작성
-2. React + Next.js(App Router)로 풀스택 앱 구조 설계
-3. **하나의 앱**이 다음 순서로 성장:
-   - `채팅 UI` (Day 4~5)
-   - → `도구를 쓰는 에이전트` (Day 6)
-   - → `문서 기반 RAG 챗봇` (Day 7)
-4. (보너스) Vercel 배포
-
-> 💡 **제안 — "하나로 이어지는 프로젝트"**: 예제를 매일 새로 만들지 않고
-> **동일한 앱을 계속 확장**합니다. 동기부여도 좋고, "왜 이 구조인지"가 몸에 남습니다.
+1. TypeScript로 타입 안전한 코드 작성
+2. React + Next.js(App Router)로 풀스택 앱 설계
+3. **하나의 앱**이 성장: `채팅 UI`(Day 4~5) → `스트리밍 챗봇+도구`(Day 6, AI SDK) → `RAG`(Day 7 직접 → Day 8 LangChain) → `LangGraph 에이전트`(Day 9)
+4. **직접 구현 vs 프레임워크**를 둘 다 경험 (RAG·에이전트) — 프레임워크가 뭘 대신 해주는지 체감
+5. **Day 10 캡스톤**: 배운 전부로 **스스로 에이전트 앱을 설계·구현** (자기주도)
+6. (보너스) Vercel 배포
 
 ---
 
@@ -53,354 +82,163 @@
 
 | 레이어 | 선택 | 비고 |
 |--------|------|------|
-| 런타임 | **Node.js 24 LTS** (Krypton) | 현재 Active LTS. `nvm`로 버전 관리 권장 |
-| 패키지 매니저 | **pnpm** (권장) 또는 npm | pnpm이 빠르고 디스크 효율적. npm도 무방 |
-| 언어 | **TypeScript 5.x** | |
-| 프레임워크 | **Next.js 16** (App Router, Turbopack 기본) | Pages Router는 배우지 않음 |
-| UI 런타임 | **React 19.2** | Next.js에 포함 |
-| 스타일링 | **Tailwind CSS v4** + **shadcn/ui** | CSS 늪 회피용. 최소만 학습 |
-| AI | **Vercel AI SDK v6** (`ai`, `@ai-sdk/react`) | `streamText` + `useChat` + tool calling |
-| LLM 프로바이더 | **Anthropic (Claude)** ✅ | `@ai-sdk/anthropic`. 학습용은 Sonnet 계열(비용/속도) 권장 |
-| 스키마 검증 | **Zod** | 도구(tool) 입력 스키마 정의에 사용 |
-| 벡터 저장 | **초경량 로컬 (인메모리 + JSON 영속화)** ✅ | 코사인 유사도를 직접 구현 → 메커니즘이 눈에 보임 |
+| 런타임 | **Node.js 24 LTS** | `nvm`/`fnm` |
+| 패키지 매니저 | **pnpm** | |
+| 언어 | **TypeScript 5.x** | ⚠️ TS 7이 나왔지만 Next.js가 아직 거부 → 5.x 유지 |
+| 프레임워크 | **Next.js 16.x** (App Router, Turbopack) | |
+| UI | **React 19.x** | |
+| 스타일 | **Tailwind CSS v4** + **shadcn/ui** | 최소만 |
+| AI ① 스트리밍 UI | **Vercel AI SDK v6** (`ai`, `@ai-sdk/react`, `@ai-sdk/anthropic`) | `useChat`+`streamText`+`tool`+`stopWhen` (Day 6) |
+| AI ② RAG | **로컬 임베딩** `@huggingface/transformers`(`Xenova/all-MiniLM-L6-v2`) + 직접구현(Day 7) → **LangChain.js**(splitter/embeddings/`MemoryVectorStore`, Day 8) | 🐍 Python `sentence-transformers`의 그 모델. 추가 키·비용 0 |
+| AI ③ 에이전트 | **LangGraph.js** (`@langchain/langgraph`, `@langchain/anthropic`) | `StateGraph`·`ToolNode`·조건부 엣지 (Day 9) |
+| LLM | **Anthropic (Claude)** | Sonnet 계열 권장. AI SDK: `@ai-sdk/anthropic` · LangChain: `@langchain/anthropic` |
+| 스키마 | **Zod** | 도구 입력 스키마 (AI SDK `inputSchema` / LangChain `schema`) |
+| 벡터 저장 | 직접구현(JSON) → `MemoryVectorStore` → (프로덕션) pgvector/Chroma/Qdrant | |
 
-> ✅ **확정 사항 (당신 선택 반영)**
-> ① 프로젝트: **전부 TypeScript** (Vercel AI SDK) — Next.js를 제대로 학습
-> ② LLM 프로바이더: **Anthropic (Claude)**
-> ③ RAG 벡터 저장: **초경량 로컬** (JS 배열 + 직접 구현한 코사인 유사도, JSON 파일로 영속화)
->
-> 💡 초경량 로컬을 고른 건 좋은 선택이에요 — ML 개발자에게는 벡터DB의 블랙박스보다
-> **유사도 계산을 직접 코드로 보는 편**이 개념이 더 선명하게 남습니다.
-> 7일 이후 프로덕션이 필요해지면 그때 pgvector로 갈아끼우면 됩니다(§15).
+> ✅ **임베딩 결정 근거**: Anthropic은 임베딩 API가 없어서, 로컬 `all-MiniLM-L6-v2`를 씁니다. ML 개발자가 Python `sentence-transformers`로 써본 바로 그 모델이고, "전부 로컬"이라 원리 학습에 최적. ⚠️ Vercel 서버리스 **배포 시엔** 로컬 임베딩이 어려우니 호스팅 임베딩(OpenAI/Voyage 등)으로 교체하거나 RAG를 분리 (Day 9 §4-3).
 
 ---
 
-## 4. 설계 원칙 (내가 반영한 것들)
+## 4. 설계 원칙
 
-1. **실습 우선**: 이론 설명은 짧게, 손으로 치는 코드 비중을 높게.
-2. **Python과의 대조 학습**: 새 문법은 항상 "파이썬이면 이렇게, JS면 이렇게"로 제시.
-3. **CSS 최소화**: shadcn/ui 컴포넌트를 가져다 쓰고, Tailwind는 여백/정렬 수준만.
-4. **도구 세팅을 Day 1에 끝냄**: ESLint/Prettier/타입체크가 처음부터 돌아가야 학습 효율이 큼.
-5. **버릴 것은 버림**: `this` 바인딩, 프로토타입 상속은 "이해만" 하고 깊게 안 팜(모던 코드는 화살표 함수로 회피). 클래스 컴포넌트, Pages Router, Redux 등 레거시는 다루지 않음.
-6. **뒤처짐 대비 플랜 내장**: 아래 §12 참고.
+1. **실습 우선** (§7-4로 강화) · 2. **완전 초보 웹 개발자 기준** · 3. **설명/실습 코드 라벨 구분**(§7-2) · 4. **Python 대조 + JS 자체 설명** · 5. **배경부터**(§7-5) · 6. **CSS 최소화** · 7. **도구 세팅 Day 1에** · 8. **원리 먼저, 프레임워크 나중** · 9. **버릴 것은 버림**(`this`/프로토타입/클래스 컴포넌트/Pages Router/Redux 제외).
 
 ---
 
-## 5. Day 0 (선택, 저녁 1~2시간) — 몸풀기
+## 7. ⭐ 강의 자료 작성 규칙 (피드백 1~5 핵심)
 
-> 정규 7일에 포함하지 않아도 되지만, 전날 밤 30분만 투자하면 Day 1이 편해집니다.
+> 이 절은 **모든 Day 상세 자료를 만들 때 강제 적용**됩니다.
 
-- [ ] Node.js 24 LTS 설치 (`nvm` 사용 권장)
-- [ ] VS Code 설치 확인
-- [ ] 터미널에서 `node -v`, `npm -v` 확인
-- [ ] pnpm 설치 (`npm i -g pnpm`)
+### 7-1. 독자 & 난이도
+- 독자: "Python은 실무로 쓰지만 HTML/CSS/JS/브라우저/Node는 거의 처음."
+- 새 웹 용어는 **첫 등장 시 한 줄 정의**. Python 비유 뒤에 **"JS만 아는 사람용 자체 설명"**을 반드시.
+- 한 문단 3~4문장 이내.
 
----
+### 7-2. 코드 블록 라벨 (피드백 #2)
+모든 코드 블록에 라벨을 답니다.
+| 라벨 | 의미 | 필수 |
+|------|------|------|
+| `📖 설명용` | 읽고 이해만(타이핑 X) | — |
+| `⌨️ 실습` | 직접 타이핑 | **파일 경로 + 실행 명령** |
+| `✅ 완성본` | 최종 정답 | 파일 경로 |
 
-## 6. Day 1 — 개발환경 + JavaScript 코어 문법
+### 7-3. 개념 5단계 템플릿 (피드백 #4)
+① 왜 있나(문제) → ② 쉬운 설명 → ③ 🐍 Python 다리 + JS 자체 설명 → ④ 📖 최소 예제 → ⑤ ⚠️ 함정.
 
-**목표**: 로컬 JS 실행 환경을 완성하고, JS 기본 문법을 Python과 대조하며 체화한다.
+### 7-4. 실습 밀도 (피드백 #3)
+- 개념 1개 = 미니 실습 1개(직후). · 세션 끝 = 문제 2~3개 + 정답. · Day 1~3 "읽기:치기 = 4:6". · 매일 디버깅 실습 1개(버그 있는 코드를 고치게).
 
-### 세션 1 (오전) — 개발환경 셋업 ⭐가장 중요
-- Node.js / npm / pnpm 역할과 `package.json` 구조
-- VS Code 필수 확장: **ESLint, Prettier, Error Lens**, (선택) Path Intellisense
-- 프로젝트 초기화: `pnpm init`, 스크립트 실행, `node file.js`
-- ESLint + Prettier 설정 파일 만들고 저장 시 자동 포맷 확인
-- 🐍 `package.json` ≈ `pyproject.toml`/`requirements.txt`, `node_modules` ≈ 가상환경, `pnpm add` ≈ `pip install`
-
-### 세션 2 (오전) — 변수·타입·연산
-- `let` / `const` (`var`는 안 씀), 스코프
-- 원시 타입: string / number / boolean / null / undefined / bigint / symbol
-- 템플릿 리터럴(백틱), 문자열 메서드
-- `==` vs `===`, truthy/falsy, `null` vs `undefined`
-- 🐍 파이썬엔 `None` 하나, JS엔 `null`과 `undefined` 둘 — 함정 주의
-
-### 세션 3 (오후) — 함수
-- 함수 선언 vs 함수 표현식 vs **화살표 함수**
-- 기본값 매개변수, 나머지(rest) `...args`, 전개(spread) `...`
-- 고차 함수 감 잡기
-- 🐍 `lambda`보다 훨씬 광범위하게 화살표 함수를 씀
-
-### 세션 4 (오후) — 배열 & 객체
-- 배열 메서드: `map` / `filter` / `reduce` / `forEach` / `find` / `some` / `every`
-- 객체 리터럴, 구조 분해 할당(destructuring), 전개 연산자
-- 🐍 리스트 컴프리헨션 대신 `map`/`filter` 체이닝에 익숙해지기
-
-### 실습
-- 간단한 CLI 스크립트: 배열 데이터를 변환/집계 (파이썬으로 하던 걸 JS로)
-- ESLint 경고 0개, Prettier 포맷 통과
-
-### ✅ 체크리스트
-- [ ] `node script.js`로 결과 출력 성공
-- [ ] `const`/`let` 구분해서 사용
-- [ ] `map/filter/reduce` 각각 예시 작성
-- [ ] 구조 분해로 객체/배열 값 꺼내기
+### 7-5. 배경지식 박스 (피드백 #5)
+각 기술 첫 도입부에 `🎯 배경` 박스(5~10문장): 왜 만들어졌나 / 어떤 문제 / 어쩌다 표준 / Python 세계와 뭐가 다른가.
 
 ---
 
-## 7. Day 2 — 비동기 + 모듈 + JS 심화
+## 8. 전체 일정 개요
 
-**목표**: JS 비동기 모델과 모듈 시스템을 익힌다 (Next.js의 토대).
-
-### 세션 1 (오전) — 스코프·클로저·고차함수
-- 렉시컬 스코프, 클로저(실전에서 매우 자주 씀)
-- 콜백 패턴
-- (가볍게) `this`가 뭔지 **개념만**, 왜 화살표 함수로 피하는지
-
-### 세션 2 (오전) — 비동기 ①
-- 이벤트 루프 멘탈 모델 (파이썬 asyncio와 비교)
-- 콜백 → **Promise** → `async/await`
-- 🐍 `async/await`는 파이썬과 키워드가 같아 친숙 — 단, 이벤트 루프가 항상 1개(싱글 스레드)
-
-### 세션 3 (오후) — 비동기 ②
-- `fetch`로 실제 API 호출, JSON 파싱
-- `Promise.all` / `Promise.race`
-- try/catch 에러 처리, 에러 객체
-- (선택) `AbortController`로 요청 취소
-
-### 세션 4 (오후) — 모듈 & 도구
-- **ES Modules** (`import`/`export`) vs CommonJS(`require`) — 차이와 언제 뭐가 쓰이는지
-- (맛보기) `tsx`/`node --experimental` 없이도 TS 실행 흐름 이해
-- npm 패키지 하나 설치해서 써 보기
-
-### 실습
-- 공개 API(예: 환율/날씨/GitHub)를 `async/await`로 호출 → 결과 가공 → 콘솔 출력
-- `Promise.all`로 병렬 호출 1건 포함
-
-### ✅ 체크리스트
-- [ ] `async/await`로 fetch 성공
-- [ ] `Promise.all` 병렬 처리 이해
-- [ ] `import/export`로 파일 분리
-- [ ] 에러를 try/catch로 처리
+| Day | 주제 | 핵심 산출물 | 🎯 배경 |
+|-----|------|-------------|---------|
+| 0 | 준비 + 지도 | 개발환경 + 웹/생태계 개념 | Node·JS 탄생사, 웹 동작(HTML/CSS/JS/DOM) |
+| 1 | 개발환경 + JS 코어 | 린팅 되는 JS 스크립트 | JS는 왜 함정이 많나 |
+| 2 | 비동기 + 모듈 | 병렬 GitHub API 스크립트 | 이벤트 루프, ESM vs CommonJS |
+| 3 | TypeScript | 타입 안전 스크립트 + Zod | TS는 왜 MS가 만들었나 |
+| 4 | React 기초 | 채팅 UI 껍데기 | React는 왜 선언형인가(Streamlit 비유) |
+| 5 | Next.js(App Router) | Next.js로 옮긴 채팅 UI | 왜 React 위에 프레임워크, 서버/클라이언트 |
+| 6 | 스트리밍 챗봇 + 도구 (AI SDK) | 진짜 LLM 스트리밍 + tool calling | AI SDK가 푸는 문제 |
+| 7 | **RAG 직접 구현** | 로컬 임베딩+코사인 검색+도구 통합 | 왜 직접부터 (ML 직관) |
+| 8 | **LangChain.js RAG** | 프레임워크로 교체·대조 | LangChain 생태계 |
+| 9 | **LangGraph.js 에이전트** | 상태 그래프 + RAG 통합 + 배포 | 왜 그래프 모델인가(에이전트 지형) |
+| 10 | **에이전트 캡스톤** | 자기주도 에이전트 앱 | 설계·계획·평가(자기 프로젝트) |
 
 ---
 
-## 8. Day 3 — TypeScript
+## 9. Day 0 — 몸풀기: 큰 그림 + 개발환경
 
-**목표**: TS 타입 시스템을 "파이썬 타입힌트의 강화판"으로 흡수한다. Next.js는 사실상 TS로 씀.
+**목표**: 코드 전에 지도. ① JS/Node 생태계 ↔ Python 매핑, ② **웹 동작 원리 프라이머**(브라우저·HTML·CSS·JS·**DOM**), ③ Node·pnpm·VS Code 설치.
+- 🎯 JS·Node 탄생사, DOM 개념(→ Day 4 React 연결).
 
-### 세션 1 (오전) — 기초 타입
-- `tsconfig.json`, `tsc`, 컴파일 흐름
-- 기본 타입: string/number/boolean/array/tuple/enum
-- `any` vs `unknown` vs `never` (매우 중요)
-- 🐍 파이썬 타입힌트는 런타임에 무시되지만, TS는 **컴파일 타임에 강제** → 훨씬 실효적
+## 10. Day 1 — 개발환경 + JS 코어
+**목표**: "저장 시 자동 포맷" 완성 + JS 코어(`let`/`const`, 화살표 함수, `map`/`filter`/`reduce`, 구조 분해/전개).
+- 🎯 JS는 왜 함정이 많나. ⚠️ `const`≠상수, `typeof null`, `[]`가 truthy, `0.1+0.2`, `===`만.
 
-### 세션 2 (오전) — 타입 구성
-- `interface` vs `type` (언제 뭘 쓰나)
-- 유니온 `|`, 인터섹션 `&`, 리터럴 타입
-- 옵셔널 `?`, 옵셔널 체이닝 `?.`, null 병합 `??`
+## 11. Day 2 — 비동기 + 모듈
+**목표**: 클로저 · 이벤트 루프 · Promise/`async·await` · `fetch`(⚠️`res.ok`) · `Promise.all` · ESM. 종합: GitHub 병렬 리포트.
+- 🎯 싱글스레드인데 왜 안 멈추나, ESM vs CommonJS.
 
-### 세션 3 (오후) — 함수·제네릭·narrowing
-- 함수 타이핑, 반환 타입, 오버로드(맛보기)
-- **제네릭** `<T>` (파이썬 `TypeVar`와 대응)
-- 타입 가드 / narrowing (`typeof`, `in`, 커스텀 가드)
+## 12. Day 3 — TypeScript
+**목표**: 기초 타입, `any`/`unknown`/`never`, `interface`/`type`, 유니온·narrowing, **제네릭**, 유틸리티 타입, **Zod**(pydantic). 종합: GitHub 스크립트 TS 3모듈 이관.
+- 🎯 TS는 왜 MS가. "실행(tsx) vs 검사(tsc)".
 
-### 세션 4 (오후) — 유틸리티 타입 & 실전
-- `Partial` / `Required` / `Pick` / `Omit` / `Record` / `ReturnType`
-- 비동기 코드 타이핑(`Promise<T>`)
-- (맛보기) Zod로 런타임 검증 + 타입 추론 → RAG/에이전트에서 재등장
+## 13. Day 4 — React 기초
+**목표**: 선언형 UI(🐍 Streamlit 비유), JSX, props, `useState`(스냅샷·불변 업데이트), `useEffect`(클린업·불필요한 경우), 커스텀 훅. 종합: **채팅 UI 껍데기**(한글 IME 처리).
+- 🎯 React는 왜 선언형(Facebook, 가상 DOM).
 
-### 실습
-- Day 2의 fetch 스크립트를 **TS로 재작성** + API 응답에 타입 정의
-- 제네릭 유틸 함수 1개 작성
+## 14. Day 5 — Next.js 기초
+**목표**: 파일 라우팅, ⭐**서버 vs 클라이언트 컴포넌트**, Route Handler, 환경변수(⚠️`NEXT_PUBLIC_`), 채팅 UI 이관 + shadcn/ui + API stub.
+- 🎯 왜 프레임워크, RSC (🐍 FastAPI 비유).
 
-### ✅ 체크리스트
-- [ ] `interface`/`type`로 데이터 모델 정의
-- [ ] 유니온 + narrowing으로 분기 처리
-- [ ] 제네릭 함수 작성
-- [ ] `tsc --noEmit` 타입 에러 0개
+## 15. Day 6 — 스트리밍 챗봇 + 도구 (Vercel AI SDK)
+**목표**: AI SDK v6로 stub을 진짜 LLM 스트리밍으로 교체. `useChat`(parts 모델) + `streamText`+`toUIMessageStreamResponse`. **기본 tool calling**(Zod `inputSchema` 도구 + `stopWhen: stepCountIs`). ⚠️ API 키 준비.
+- 🎯 AI SDK가 뭘 대신 해주나(스트리밍 배선).
 
----
+## 16. Day 7 — RAG 직접 구현 (프레임워크 X)
+**목표**: 청킹(직접) → **로컬 임베딩**(`@huggingface/transformers`, all-MiniLM) → **코사인 유사도 직접 구현** → top-k → JSON 저장 → **챗봇 도구로 통합**(searchKnowledgeBase). 인덱싱 대상 = 학습자 본인의 Day0~6 문서.
+- 🎯 왜 직접부터(ML 직관). 🐍 numpy dot/norm을 TS로, sentence-transformers의 그 모델.
 
-## 9. Day 4 — React 기초
+## 17. Day 8 — LangChain.js RAG (프레임워크 교체)
+**목표**: Day 7을 LangChain으로 교체·대조 — `RecursiveCharacterTextSplitter` / `HuggingFaceTransformersEmbeddings`(같은 모델) / `MemoryVectorStore` / `similaritySearch` / `asRetriever`. 도구 엔진을 **한 줄 교체**(같은 인터페이스).
+- 🎯 LangChain 생태계, "직접 짜본 덕에 내부가 보인다". ⚠️ v0.x↔v1.x import 경로 churn.
 
-**목표**: 선언형 UI와 훅(hook) 사고방식을 익힌다. **Next.js의 절반은 React다.**
+## 18. Day 9 — LangGraph.js 에이전트 + 통합 + 배포
+**목표**: Day 6 도구 루프를 **`StateGraph`**(agent 노드 ↔ tools 노드 + 조건부 엣지)로 재구성. Day 8 리트리버를 **에이전트 도구로 통합**. `streamMode:"messages"` → SSE → 커스텀 훅으로 UI 스트리밍. Vercel 배포(⚠️ 로컬 임베딩 서버리스 제약). 9일 회고.
+- 🎯 왜 그래프 모델(에이전트 지형 2026). 🐍 Python LangGraph와 동일. AI SDK 도구 vs LangChain 도구 API 차이.
 
-### 세션 1 (오전) — React 멘탈 모델 + JSX
-- 명령형 vs **선언형** UI ("상태를 바꾸면 화면이 따라온다")
-- 컴포넌트 트리, 단방향 데이터 흐름
-- JSX 문법, 표현식 삽입, 조건부/리스트 렌더링(`key`)
-- 🐍 이게 가장 큰 사고 전환 지점 — "DOM을 직접 조작"이 아니라 "상태의 함수로서 UI"
-
-### 세션 2 (오전) — props & state
-- props (TS로 타이핑)
-- `useState`, 이벤트 핸들링, 폼 입력 제어
-- 상태 끌어올리기(lifting state up)
-
-### 세션 3 (오후) — useEffect & 렌더링
-- `useEffect`의 정확한 멘탈 모델과 흔한 함정(의존성 배열)
-- 언제 effect가 **필요 없는지**(중요)
-- `useRef`, `useMemo`, `useCallback` 감 잡기
-
-### 세션 4 (오후) — 컴포지션 + 커스텀 훅
-- 컴포넌트 분리/재사용, children
-- 커스텀 훅 맛보기
-- (도구) Vite로 순수 React 연습 환경 or Next.js로 바로 진입 — 아래 실습 참고
-
-### 실습 — ⭐프로젝트 시작
-- **채팅 UI 껍데기** 만들기 (백엔드 없이):
-  메시지 목록 렌더링, 입력창, 전송 시 상태 업데이트, 자동 스크롤
-- shadcn/ui 컴포넌트로 최소 스타일
-
-### ✅ 체크리스트
-- [ ] `useState`로 인터랙션 구현
-- [ ] props를 TS로 타이핑
-- [ ] 리스트 렌더링 + `key`
-- [ ] "effect가 필요 없는 경우"를 하나 설명 가능
+## 19. Day 10 — 에이전트 캡스톤 (자기주도)
+**목표**: 배운 전부(Next.js + LangGraph + RAG + 도구 + 스트리밍 + TS)를 총동원해 **스스로 에이전트 앱을 설계·구현**. 단계별 코드가 아니라 **요구사항·아키텍처·마일스톤·평가 루브릭**을 제공하고 학습자가 주도. 캡스톤급 새 기법(계획/라우팅 노드, PDF 로더, HITL, 구조화 출력, LangSmith 평가) 중 택해 도입.
+- 프로젝트 트랙 예: 연구/논문 어시스턴트 · 개인 지식 워커 · 코드베이스 Q&A · 데이터 분석 에이전트.
+- 상세는 `docs/Day10.md` 참고.
 
 ---
 
-## 10. Day 5 — Next.js 기초 (App Router)
+## 20. 진도 관리 & 뒤처질 때
 
-**목표**: Next.js 16의 구조와 **서버/클라이언트 컴포넌트** 모델을 익히고, 채팅 UI를 Next.js 위로 옮긴다.
+> JS 무경험 → LangGraph/LangChain 에이전트까지 10일도 공격적입니다. Day 6~9가 밀릴 수 있으니 대비.
 
-### 세션 1 (오전) — 프로젝트 구조 & 라우팅
-- `pnpm create next-app` (App Router, TS, Tailwind 선택)
-- 파일 기반 라우팅: `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`
-- 중첩 레이아웃, 네비게이션(`<Link>`)
-
-### 세션 2 (오전) — ⭐서버 컴포넌트 vs 클라이언트 컴포넌트
-- Next.js 16에서 `app/`의 기본은 **서버 컴포넌트(RSC)**
-- `"use client"`가 필요한 순간 (state/effect/이벤트/브라우저 API)
-- 서버에서 `async/await`로 직접 데이터 페칭
-- 🐍 백엔드 개발자가 가장 헷갈리는 지점 — 여기서 시간 넉넉히
-
-### 세션 3 (오후) — 데이터·서버 액션·API
-- Route Handlers (`app/api/.../route.ts`) — 우리 채팅 백엔드가 여기 붙음
-- Server Actions (폼/뮤테이션)
-- 스트리밍, `loading.tsx`로 로딩 UI
-- 환경 변수(`.env.local`), 서버/클라이언트 노출 규칙
-
-### 세션 4 (오후) — 채팅 UI 이관
-- Day 4 채팅 UI를 Next.js 프로젝트로 이전
-- `"use client"` 경계 정리
-- (준비) API route 껍데기 하나 만들어 두기 → Day 6에서 채움
-
-### ✅ 체크리스트
-- [ ] 서버/클라이언트 컴포넌트 차이를 말로 설명 가능
-- [ ] `app/api/*/route.ts`로 API 엔드포인트 작성
-- [ ] `.env.local`에서 값 읽기
-- [ ] 페이지 2개 이상 + 레이아웃 구성
+- **밀리면 버릴 순서**: 배포 → HITL/체크포인팅 → RAG 직접구현/LangChain 중 하나 → 도구 개수.
+  핵심 최소선: "스트리밍 챗봇(6) + LangGraph 도구 루프(9) + RAG(7 또는 8 택1)".
+- **집중 트랙**: Day 0을 Day 1에 흡수, Day 7·8을 하루로 압축(직접 or 프레임워크 택1) → 단축 가능.
+- **막히면**: 이 문서를 붙이고 "Day N의 ___가 이해 안 됨. §7 규칙대로 Python 비유 **+ JS 자체 설명**으로"라고 요청.
 
 ---
 
-## 11. Day 6 — 프로젝트 ① 스트리밍 챗봇 → 에이전트
+## 21. ⭐ 참고 자료 (피드백 #7)
 
-**목표**: Vercel AI SDK v6로 스트리밍 챗봇을 만들고, **tool calling**으로 "에이전트"로 확장한다.
+> 공식 문서를 1순위로. 버전이 빠르니 항상 "현재 버전" 문서를 확인.
 
-> 스택 확정: 전부 TS + Anthropic (`@ai-sdk/anthropic`).
+**JS/TS**: MDN(`developer.mozilla.org`) · javascript.info · TypeScript Handbook(`typescriptlang.org/docs`)
+**React/Next.js**: `react.dev/learn` · `nextjs.org/docs`(App Router, 16.x)
+**AI SDK (Day 6)**: `ai-sdk.dev`(구 sdk.vercel.ai) · Vercel 블로그 "AI SDK 6"
+**임베딩/RAG (Day 7~8)**: Transformers.js `huggingface.co/docs/transformers.js` · LangChain.js `docs.langchain.com`(JS) / `js.langchain.com`
+**에이전트 (Day 9~10)**: LangGraph.js `langchain-ai.github.io/langgraphjs` · 커뮤니티 `langgraphjs.guide` · 풀스택 템플릿 `github.com/agentailor/fullstack-langgraph-nextjs-agent`
+**에이전트 설계 개념**: Anthropic "Building effective agents"(`anthropic.com/engineering/building-effective-agents`) · Anthropic 문서(`docs.claude.com`) · ReAct 논문(arXiv 2210.03629) · LangSmith(관측/평가)
+**PDF/로더 (캡스톤)**: LangChain `PDFLoader`(`@langchain/community/document_loaders/fs/pdf`)
 
-### 세션 1 (오전) — AI SDK 개요 & LLM 연결
-- `ai`, `@ai-sdk/react`, `@ai-sdk/anthropic`(또는 openai) 설치
-- API 키를 `.env.local`에 설정, 비용/토큰 개념 짧게
-- `generateText` / `streamText` / `generateObject` 역할 구분
-- 🐍 개념(프롬프트/토큰/스트리밍)은 이미 알 것 — 여기선 **JS 배선**에 집중
-
-### 세션 2 (오전) — 스트리밍 채팅 완성
-- 서버: `app/api/chat/route.ts`에서 `streamText`
-- 클라이언트: `useChat` 훅 (v6 message-parts 모델)
-- 실시간 토큰 스트리밍 UI 연결
-
-### 세션 3 (오후) — 에이전트 = tool calling
-- **에이전트란**: `streamText` + `tools` + 다단계 스텝(step) 루프
-  (모델이 도구 호출 → 결과 관찰 → 다시 추론)
-- **Zod**로 도구 입력 스키마 정의
-- 도구 2~3개 구현 (예: 현재 시각, 계산기, 외부 API 조회)
-- 도구 호출/결과를 UI에 렌더링 (message-parts)
-
-### 세션 4 (오후) — 다듬기
-- 다단계 스텝 한도, 에러 처리, `onError`/재시도
-- 시스템 프롬프트 튜닝
-- (선택) 로딩/스켈레톤 UI
-
-### ✅ 체크리스트
-- [ ] 토큰이 실시간 스트리밍되는 챗봇 동작
-- [ ] Zod 스키마 도구 1개 이상 호출 성공
-- [ ] 도구 호출 → 결과 → 최종 답변 루프 확인
-- [ ] 에러 케이스 1개 처리
+> 💡 URL은 바뀔 수 있습니다. 안 열리면 "제품명 + docs"로 검색하세요.
 
 ---
 
-## 12. Day 7 — 프로젝트 ② RAG + 마무리
+## 22. 10일 이후 (심화 방향)
 
-**목표**: 문서를 인덱싱하고 검색-증강 생성으로 답하는 RAG를 에이전트 위에 얹는다. 그리고 배포.
-
-> RAG **개념**(청킹/임베딩/유사도 검색/증강)은 이미 알고 있으므로,
-> **TS/Next.js에서의 구현 배선**에 집중합니다.
-
-### 세션 1 (오전) — 인덱싱 파이프라인
-- 문서 로드 → **청킹(chunking)**
-- AI SDK `embed` / `embedMany`로 임베딩 생성
-- 벡터 저장: **초경량 로컬** — 임베딩을 JS 객체 배열에 담아 JSON 파일로 저장(영속화)
-- 🐍 파이썬 RAG와 흐름 동일, 라이브러리·타입만 다름
-
-### 세션 2 (오전) — 검색(retrieval)
-- 쿼리 임베딩 → **코사인 유사도를 직접 구현**해 top-k 검색 (벡터DB 없이)
-- 🐍 numpy로 하던 dot/norm 계산을 TS로 — 개념은 동일, 배선만 다름
-- (선택) 메타데이터 필터링, 검색 품질 간단 점검
-
-### 세션 3 (오후) — 증강 생성 & 통합
-- 검색 결과를 컨텍스트로 주입 → `streamText`
-- **RAG를 도구로** 노출해서 Day 6 에이전트와 결합
-  (에이전트가 "필요할 때 지식베이스 검색" 도구를 호출)
-- 출처(citation) 표시 UI
-
-### 세션 4 (오후) — 배포 & 회고
-- (선택) Vercel 배포, 환경 변수 설정
-- 전체 코드 리뷰, 리팩터링 포인트 정리
-- 7일 회고 + 다음 학습 방향 정리
-
-### ✅ 체크리스트
-- [ ] 문서 인덱싱 → 임베딩 저장 성공
-- [ ] top-k 검색 결과가 질의와 관련 있음
-- [ ] RAG 답변에 출처 표시
-- [ ] (선택) 배포 URL 접속 가능
+- 에이전트: LangGraph 멀티 에이전트, HITL, 체크포인팅 영속화, eval
+- RAG: 하이브리드 검색, 리랭킹, pgvector 등 프로덕션 벡터DB
+- 상태/인증/DB: TanStack Query, Zustand, Auth.js, Drizzle + Postgres
+- 테스트/관측: Vitest, Playwright, LangSmith
 
 ---
 
-## 13. 진도 관리 & 뒤처질 때 대응
+## 23. 상세 자료 요청 템플릿
 
-> 솔직히 말하면, **JS 무경험 → RAG 앱까지 56시간은 공격적인 일정**입니다.
-> 강한 개발자라 가능하지만, Day 6~7 프로젝트가 밀릴 수 있어요. 미리 대비합니다.
-
-- **밀리면 버릴 순서**: Vercel 배포 → RAG 고급(메타데이터 필터) → 에이전트 도구 개수.
-  **채팅 스트리밍 + 도구 1개 + 기본 RAG**만 되면 핵심 목표는 달성입니다.
-- **너무 여유로우면 추가할 것**: 대화 히스토리 영속화, 인증(Auth.js), 테스트(Vitest), 스타일 고급화.
-- **하루 리듬 제안**: 90분 학습 + 15분 휴식 × 4 세션. 각 Day 마지막 30분은 "체크리스트 점검 + 내일 미리보기".
-- **막히면**: 이 문서를 붙이고 "Day N 세션 X에서 ___가 이해 안 됨. Python 비유로 설명해줘"라고 물어보세요.
-
----
-
-## 14. 내가 보강한 항목 (당신이 놓치기 쉬운 것)
-
-1. **개발환경/린팅을 Day 1에 확정** — JS는 도구 세팅이 학습 속도를 크게 좌우합니다.
-2. **서버 vs 클라이언트 컴포넌트** — 백엔드 배경일수록 여기서 막히므로 Day 5에 시간 배분을 크게.
-3. **CSS 늪 회피 전략** (Tailwind + shadcn/ui) — 안 정하면 스타일에 몇 시간씩 샙니다.
-4. **하나로 이어지는 프로젝트** — 에이전트/RAG를 별개가 아니라 한 앱의 확장으로.
-5. **Zod** — 도구 스키마·API 검증에 계속 나오므로 Day 3 말미에 미리 맛보기.
-6. **버릴 것 명시** — `this`/프로토타입/클래스 컴포넌트/Pages Router/Redux는 학습 범위 밖.
-7. **비용/키 관리** — LLM API 키와 소액 과금 발생. Day 6 시작 전 준비.
-
----
-
-## 15. 7일 이후 (심화 방향, 참고용)
-
-- 상태관리: TanStack Query, Zustand
-- 인증/DB: Auth.js, Drizzle ORM + Postgres
-- 테스트: Vitest, Playwright
-- 에이전트 심화: 멀티 에이전트, 평가(eval), 관측(observability)
-- RAG 심화: 하이브리드 검색, 리랭킹, 프로덕션 벡터DB
-
----
-
-## 16. 상세 자료 요청 템플릿
-
-학습 중 아래처럼 요청하면 됩니다.
-
-- 상세 강의 요청:
-  > "이 로드맵의 **Day 3 세션 3(제네릭·narrowing)** 상세 학습 자료 만들어줘.
-  > Python 대비 포인트 강조하고, 실습 문제 3개 포함해줘."
-- 막힐 때:
-  > "Day 5 서버/클라이언트 컴포넌트가 헷갈려. Python 백엔드 비유로 설명해줘."
-- 코드 리뷰:
-  > "지금 짠 `route.ts`인데 리뷰해줘. TS 타입도 봐줘." + 코드 첨부
+- **상세 강의**: "Day 9 세션 2(StateGraph) 상세 자료 만들어줘. §7 규칙대로: `📖/⌨️/✅` 라벨, 개념 5단계, `🎯 배경`, 미니 실습 많이."
+- **막힐 때**: "Day 5 서버/클라이언트 컴포넌트 헷갈려. §7 규칙대로 Python 비유 **+ JS 자체 설명**으로."
+- **비교 요청**: "Day 8에서 직접구현본과 LangChain 버전을 나란히 비교해줘."
+- **캡스톤**: "Day 10 캡스톤에서 '연구 어시스턴트' 트랙의 그래프 설계를 도와줘."
+- **코드 리뷰**: "이 `route.ts` 리뷰해줘. TS 타입도." + 코드 첨부
