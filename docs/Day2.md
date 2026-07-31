@@ -673,6 +673,10 @@ console.log("생성된 ID:", nanoid()); // 예: "V1StGXR8_Z5jdHi6B-myT"
 
 오늘 배운 걸 전부 씁니다: **모듈 분리 + async/await + fetch + Promise.all + Day 1의 map/filter/reduce**.
 
+문법이 한 파일에 몰려 있어서 처음엔 안 읽히는 게 정상입니다. **일단 그대로 쳐서 돌려 보고**, 바로 뒤에 붙은 해부 절에서 낯선 문법을 하나씩 뜯습니다.
+
+### 5-1. 라이브러리 파일 — `github-lib.js`
+
 ⌨️ 실습 — `practice/day2/exercise/github-lib.js` 새 파일
 
 ```js
@@ -691,6 +695,91 @@ export const fetchUsers = async (names) => {
     .map((r) => r.value);
 };
 ```
+
+#### 잠깐 — 이 파일의 낯선 문법 4개
+
+**① `export const fetchUser = async (username) => {` — 한 줄에 세 가지가 겹쳐 있음**
+
+```
+export   const fetchUser   =   async   (username) => { ... }
+  ↑          ↑                   ↑         ↑
+내보내기   변수 선언          비동기 함수  매개변수
+```
+
+`export`는 **"이 이름을 다른 파일에서 쓸 수 있게 공개한다"**는 표시입니다(4-1의 named export). 나머지는 세션 2에서 본 `async` 화살표 함수 그대로예요.
+
+🐍 Python은 모듈의 최상위 이름이 **자동으로** 공개돼서 `export`라는 게 없죠(`async def fetch_user(username):`이면 끝). JS는 **내보낼 것을 명시**해야 합니다. `export`를 안 붙인 변수는 그 파일 밖에서 아예 안 보여요 — 1-1의 스코프가 파일 단위로 한 번 더 적용되는 셈입니다.
+
+**② `if (!res.ok) throw new Error(...)` — 중괄호 없는 `if`**
+
+JS의 `if`는 **본문이 한 문장이면 `{ }`를 생략**할 수 있습니다. 아래 둘은 완전히 같은 코드예요.
+
+📖 설명용
+
+```js
+if (!res.ok) throw new Error(`${username}: ${res.status}`);
+
+// 위 = 아래
+if (!res.ok) {
+  throw new Error(`${username}: ${res.status}`);
+}
+```
+
+`!`는 부정입니다(🐍 `not`). `!res.ok` = "응답이 정상(200번대)이 **아니면**". 3-1의 그 함정 — `fetch`는 404에도 에러를 안 내니 직접 던져주는 겁니다.
+
+⚠️ **함정 — JS에서 들여쓰기는 아무 의미가 없습니다.**
+
+```js
+if (!res.ok) throw new Error("실패");
+  console.log("여기는 항상 실행됨");  // ← 들여썼지만 if 소속이 아님!
+```
+
+🐍 Python은 들여쓰기가 곧 블록이라 이런 사고가 안 나죠. JS는 **오직 `{ }`만** 블록을 만듭니다. 그래서 줄이 늘어날 가능성이 있으면 처음부터 중괄호를 쓰는 게 안전해요.
+
+**③ `Promise.allSettled` — 돌려주는 게 사용자가 아니라 "보고서"**
+
+3-3의 `Promise.all`은 하나만 실패해도 전부 터졌습니다. `allSettled`는 **아무도 안 터뜨리고, 각 결과를 봉투에 싸서** 돌려줘요.
+
+📖 설명용 — `allSettled`가 실제로 돌려주는 배열
+
+```js
+[
+  { status: "fulfilled", value: { login: "torvalds", followers: 200000, ... } },
+  { status: "fulfilled", value: { login: "gaearon", ... } },
+  { status: "rejected",  reason: Error("존재하지않는유저999: 404") },
+]
+```
+
+성공 칸엔 `value`, 실패 칸엔 `reason`이 들어 있고 **`status` 문자열로 구분**합니다. 사용자 객체가 한 겹 포장돼 나오니, 포장을 뜯는 다음 줄이 반드시 필요해요.
+
+| | 하나라도 실패하면 | 손에 쥐는 것 |
+|---|---|---|
+| `Promise.all` | **전체가 reject** | `[user, user, user]` (알맹이) |
+| `Promise.allSettled` | 신경 안 쓰고 계속 | `[{status, value}, ..., {status, reason}]` (봉투) |
+
+🐍 `asyncio.gather(*tasks, return_exceptions=True)`가 가장 가깝습니다. 다만 Python은 성공하면 값을, 실패하면 예외 객체를 **같은 자리에 섞어서** 주죠. JS는 항상 `{status, ...}` 봉투로 모양을 통일한다는 게 차이입니다.
+
+**④ `.filter(...).map(...)` — 점을 이어 붙이는 체이닝**
+
+```js
+return results
+  .filter((r) => r.status === "fulfilled")   // ① 성공한 봉투만 남기고
+  .map((r) => r.value);                      // ② 봉투를 뜯어 알맹이만 꺼냄
+```
+
+`r`은 **봉투 하나**입니다(result의 r). 3-3에서 본 `n`과 완전히 같은 자리예요 — `filter`/`map`이 배열을 돌면서 요소를 하나씩 넣어주는 매개변수이고, **이름은 내가 아무렇게나 지은 것**입니다.
+
+`filter`가 새 배열을 반환하니 거기에 곧바로 `.map`을 이어 붙일 수 있습니다. 🐍 Python이면 `[r["value"] for r in results if r["status"] == "fulfilled"]` 한 줄로 끝날 일을, JS는 **단계를 점으로 잇습니다.**
+
+⚠️ **`===`는 값과 타입을 함께 보는 엄격 비교**입니다. `==`는 타입을 멋대로 변환해서(`"1" == 1` → `true`) 사고를 냅니다. **JS에서는 항상 `===`**. 🐍 Python의 `==`가 JS의 `===`에 해당한다고 생각하세요.
+
+> ⌨️ **미니 실습** — `github-lib.js`의 `fetchUsers` 안, `return` 바로 위에 한 줄 추가하고 실행
+> ```js
+> console.log(results);   // 봉투 배열이 실제로 어떻게 생겼는지 눈으로 확인
+> ```
+> `status`/`value`/`reason`을 확인했으면 지우세요.
+
+### 5-2. 리포트 파일 — `github-report.js`
 
 ⌨️ 실습 — `practice/day2/exercise/github-report.js` 새 파일
 
@@ -716,7 +805,90 @@ const main = async () => {
 main();
 ```
 
-⌨️ 실행
+#### 잠깐 — `u`, `i`, `sum`, `a`, `b`는 대체 뭔가
+
+선언한 적도 없는 이름들이 갑자기 튀어나와 당황스러운 지점입니다. 한 줄 답: **전부 콜백 함수의 매개변수**, 즉 배열이 값을 "넣어주는 자리"이고 **이름은 내가 마음대로 지은 것**입니다.
+
+3-3의 `n`, 5-1의 `r`과 완전히 같은 구조예요. 차이는 **배열 메서드가 몇 개를, 어떤 순서로 넣어주느냐**뿐입니다.
+
+| 메서드 | 콜백이 받는 것 (순서 고정) | 이 코드에서 붙인 이름 |
+|---|---|---|
+| `sort` | (비교할 요소1, 비교할 요소2) | `a`, `b` |
+| `reduce` | (누적값, 현재 요소, 인덱스, 배열) | `sum`, `u` |
+| `forEach` | (현재 요소, 인덱스, 배열) | `u`, `i` |
+
+⚠️ **이름이 아니라 "위치"가 의미를 결정합니다.** `(u, i)`를 `(i, u)`로 바꿔 쓰면 첫 번째 자리에 오는 사용자 객체가 `i`에 들어가 엉망이 돼요. 반대로 뒤쪽의 안 쓰는 인자는 그냥 안 적으면 됩니다(`forEach((u) => ...)`).
+
+**① `forEach((u, i) => ...)` — 요소와 인덱스**
+
+`u`는 user, `i`는 index에서 딴 관습적인 약자일 뿐입니다. 이렇게 써도 똑같이 돌아가요.
+
+📖 설명용 — 위와 완전히 같은 코드
+
+```js
+ranked.forEach((사용자, 순번) =>
+  console.log(`${순번 + 1}위 ${사용자.login}`)
+);
+```
+
+🐍 Python이면 이겁니다.
+
+```python
+for i, u in enumerate(ranked):
+    print(f"{i + 1}위 {u['login']}")
+```
+
+Python은 `for` **문법**이 값을 꺼내 변수에 대입하죠. 반면 JS의 `forEach`는 **"각 요소마다 이 함수를 대신 실행해줘"라고 함수를 통째로 넘기는** 방식입니다. 그래서 값이 대입이 아니라 **함수의 인자로 전달**돼요. 인덱스는 0부터 시작하니 `i + 1`을 해서 사람이 읽는 "1위"로 맞춥니다.
+
+**② `reduce((sum, u) => sum + u.public_repos, 0)` — 누적**
+
+Day 1에서 본 그 `reduce`입니다. 첫 인자 `sum`이 **지금까지 누적된 값**, 둘째 `u`가 **이번 차례의 요소**, 그리고 맨 뒤 `0`이 **누적 시작값**이에요.
+
+📖 설명용 — `reduce`가 내부에서 하는 일
+
+```js
+let sum = 0;                      // ← 맨 뒤에 적은 0
+for (const u of users) {
+  sum = sum + u.public_repos;     // ← 콜백이 반환한 값이 다음 sum이 됨
+}
+// 최종 sum이 reduce의 결과
+```
+
+🐍 `functools.reduce(lambda acc, u: acc + u["public_repos"], users, 0)`와 같습니다.
+
+⚠️ **콜백이 값을 반환하지 않으면 다음 `sum`이 `undefined`가 됩니다.** 지금처럼 중괄호 없는 화살표 함수는 자동 반환이지만, `{ }`로 감쌌다면 `return`을 꼭 붙이세요.
+
+**③ `sort((a, b) => b.followers - a.followers)` — 비교 규칙**
+
+`sort`는 요소를 **둘씩 짝지어** 콜백에 넣고 "누가 앞이냐"를 묻습니다. 반환값이 음수면 `a`가 앞, 양수면 `b`가 앞이에요.
+
+- `a.followers - b.followers` → 오름차순 (작은 게 앞)
+- `b.followers - a.followers` → **내림차순** (큰 게 앞) ← 순위표라 이걸 씀
+
+`[...users]`로 복사본을 먼저 만든 건 Day 1의 함정 그대로 — **`sort`는 원본 배열을 직접 뒤집어 버리기** 때문입니다. 아래 `users.length`와 `reduce`는 원래 순서의 배열을 그대로 써야 하죠.
+
+**④ 나머지 자잘한 것들**
+
+- `` `${i + 1}위 ${u.login}` `` — 백틱 문자열 안 `${ }`에는 **식**이 들어갑니다. 🐍 f-string과 같아요.
+- `"\n조회 성공..."` — `\n`은 줄바꿈 문자. 앞에 한 줄 띄우고 출력하라는 뜻입니다.
+- `users.length` — 배열 길이. 🐍 `len(users)`.
+- `main();` — 마지막 줄에서 **직접 호출**해야 실행됩니다. `async` 함수도 정의만으로는 아무 일도 안 일어나요.
+
+> ⌨️ **미니 실습** — `github-report.js` 맨 아래에 붙여 실행 (확인 후 지우기)
+> ```js
+> // forEach가 콜백에 넘겨주는 3개를 전부 찍어 보기
+> ["사과", "바나나"].forEach((element, index, whole) =>
+>   console.log("요소:", element, "| 인덱스:", index, "| 전체:", whole)
+> );
+>
+> // ⚠️ 순서를 바꾸면? (일부러 틀린 코드)
+> ["사과", "바나나"].forEach((index, element) => console.log(`${index}번: ${element}`));
+> ```
+> 두 번째가 `사과번: 0`처럼 뒤집혀 나오는 걸 눈으로 보면 "이름이 아니라 순서"가 확실히 박힙니다.
+
+### 5-3. 실행
+
+⌨️ 실행 — `practice/day2/`에서
 
 ```bash
 node exercise/github-report.js
@@ -735,6 +907,31 @@ node exercise/github-report.js
 ```
 
 💡 `Promise.allSettled` + `filter`로 **"일부 실패해도 나머지는 산다"**를 구현했어요. 실무 API 호출에서 매우 흔한 패턴입니다.
+
+### 5-4. 혼자 해보기 (선택)
+
+⌨️ 문제 — `github-report.js`를 고쳐서
+
+1. (쉬움) 실패한 사용자도 보고 싶습니다. `github-lib.js`의 `fetchUsers`에서 `filter`의 조건을 `"rejected"`로 바꾼 함수를 하나 더 만들어 실패 사유(`r.reason.message`)를 출력하세요.
+2. (보통) 팔로워 평균을 출력하세요. (`reduce`로 합 → `users.length`로 나누기, `.toFixed(1)`로 소수점 한 자리)
+
+✅ 정답
+
+```js
+// github-lib.js에 추가
+export const fetchFailures = async (names) => {
+  const results = await Promise.allSettled(names.map((n) => fetchUser(n)));
+  return results
+    .filter((r) => r.status === "rejected")
+    .map((r) => r.reason.message);
+};
+
+// github-report.js — main 안에
+const avg = users.reduce((sum, u) => sum + u.followers, 0) / users.length;
+console.log(`평균 팔로워: ${avg.toFixed(1)}`);
+```
+
+⚠️ 1번은 `fetchUsers`와 `fetchFailures`가 각각 `allSettled`를 부르니 **API 요청이 두 배로 나갑니다.** 실무라면 봉투 배열을 한 번만 받아 성공/실패로 갈라 쓰는 게 맞아요 — 지금은 문법 연습이니 넘어갑니다.
 
 ---
 
