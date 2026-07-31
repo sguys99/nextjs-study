@@ -1,5 +1,8 @@
 {
   "name": "day2",
   "version": "1.0.0",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "nanoid": "^6.0.0"
+  }
 }
