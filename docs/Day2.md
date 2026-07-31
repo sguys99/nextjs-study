@@ -414,6 +414,115 @@ console.log(data.login, data.public_repos);
 
 ⚠️ **`throw`와 `catch`**: 🐍 `raise`가 `throw`, `except`가 `catch`입니다. `err.message`로 메시지를 꺼내요.
 
+#### 잠깐 — 위 코드에 `await`가 왜 두 군데나 붙었나
+
+`fetch` 앞에 하나, `getUser` 앞에 하나. 헷갈리기 딱 좋은 지점이라 한 번 짚고 갑니다.
+**한 줄 답: 둘 다 Promise(진동벨)를 반환하는 함수라서**입니다. `await`은 **"벨 울릴 때까지 기다렸다가 상자 안의 진짜 값을 꺼내라"**는 뜻이에요.
+
+**① `await fetch(...)` — 응답이 도착할 때까지**
+
+`fetch`는 네트워크 요청이라 결과가 즉시 안 나옵니다. 그래서 `Response` 대신 **진동벨**을 즉시 돌려줘요.
+
+📖 설명용 — `await`을 빼면 무슨 일이 생기나
+
+```js
+const res = fetch("https://api.github.com/users/torvalds");
+console.log(res);     // Promise { <pending> }  ← Response가 아니라 상자!
+console.log(res.ok);  // undefined              ← 상자엔 .ok가 없다
+```
+
+`await`을 붙여야 상자가 열리고 `Response` 객체가 나옵니다. 그래야 다음 줄의 `res.ok`, `res.status`를 읽을 수 있어요.
+
+**② `await getUser(...)` — `async` 함수는 무조건 Promise를 반환하니까**
+
+세션 2에서 "함수 앞에 `async`를 붙이면 그 함수는 Promise를 반환한다"고 했죠(2-3). 그게 여기서 그대로 걸립니다. `getUser` 안에서 `return res.json()`으로 **객체를 돌려주는 것처럼 보여도**, 바깥에서 받는 건 언제나 `Promise<객체>`입니다.
+
+📖 설명용
+
+```js
+const user = getUser("torvalds");
+console.log(user.login);  // undefined  ← user는 객체가 아니라 Promise
+```
+
+그래서 `user.login`, `user.public_repos`를 쓰려면 `await`으로 한 번 꺼내야 합니다.
+
+**③ 그럼 `return res.json()`엔 왜 `await`가 없나?**
+
+`res.json()`도 Promise를 반환합니다(본문을 끝까지 받아서 파싱해야 하니까). 그런데 여기선 `await` 없이 그냥 `return`했죠.
+
+**`async` 함수가 Promise를 `return`하면 자동으로 평탄화(flatten)되기 때문**입니다. `Promise<Promise<객체>>`로 두 겹이 되지 않고 `Promise<객체>` 한 겹으로 눌립니다. 그래서 호출부의 `await getUser(...)` **한 번**으로 최종 객체가 나와요.
+
+```js
+// 📖 설명용 — 아래 둘은 결과가 같음
+return res.json();
+return await res.json();
+```
+
+💡 다만 **`try/catch` 안에서는 다릅니다.** `return await`이어야 그 에러를 **이 함수의 catch**가 잡아요. 그냥 `return`하면 에러가 호출자에게 넘어가 **호출자의 catch**가 잡습니다. 지금 `getUser`에는 try/catch가 없으니 차이가 없습니다.
+
+**정리 — 값이냐 상자냐**
+
+| 표현 | 손에 쥐는 것 |
+|---|---|
+| `fetch(url)` | `Promise<Response>` (상자) |
+| `await fetch(url)` | `Response` (값) |
+| `res.json()` | `Promise<object>` (상자) |
+| `await res.json()` | `object` (값) |
+| `getUser("torvalds")` | `Promise<object>` (상자) |
+| `await getUser("torvalds")` | `object` (값) |
+
+**규칙 한 줄**: `async` 함수 호출 앞, 그리고 Promise를 반환하는 함수 앞에는 `await`. 안 붙이면 값 대신 상자를 받습니다.
+
+⚠️🐍 **`await`은 "시작 버튼"이 아닙니다.** Python 코루틴은 `await`하기 전엔 아예 안 돌지만(lazy), JS는 `fetch(...)`를 호출한 **그 순간 이미 요청이 나갔습니다**(2-2의 두 번째 함정). `await`은 "시작해라"가 아니라 **"이미 달리는 것의 결과를 기다려라"**예요. 바로 다음 3-3의 `Promise.all`이 이 성질을 그대로 이용합니다.
+
+#### 그래서 — 어떤 함수가 Promise를 주는지 어떻게 아나
+
+"`await`을 붙여야 하는 함수"를 알아보는 방법입니다. 실무에서 쓰는 순서대로 넷.
+
+**① 정의에 `async`가 붙어 있으면 100% Promise** — 예외 없습니다. `const getUser = async (...) => {...}` 를 본 순간 확정이에요. 내가 만든 함수는 이걸로 끝납니다.
+
+**② 에디터에 마우스를 올려본다 (가장 실용적)** — VS Code에서 함수 이름 위에 커서를 올리면 반환 타입이 뜹니다.
+
+```
+fetch(input: RequestInfo, init?: RequestInit): Promise<Response>
+                                              ^^^^^^^^^^^^^^^^^ 이게 보이면 await 대상
+```
+
+`Promise<...>`로 감싸여 있으면 상자입니다. 🐍 Python에서 IDE가 `-> Coroutine[...]`을 보여주는 것과 같은 역할이에요. Day 3에서 TypeScript를 붙이면 이 정보가 훨씬 정확해지고, **`await`을 빠뜨리면 아예 컴파일 에러**로 잡아줍니다.
+
+**③ 감각 규칙 — "바깥 세상과 대화하면 비동기"**
+
+| 🟢 동기 (그냥 값) | 🔴 비동기 (Promise) |
+|---|---|
+| `arr.map()`, `arr.filter()` | `fetch(url)` — 네트워크 |
+| `JSON.parse(str)` | `res.json()` — 아직 다 안 온 본문을 읽음 |
+| `Math.max(...)` | `fs.promises.readFile()` — 디스크 |
+| `str.toUpperCase()` | `wait(1000)` — 타이머 |
+
+기준은 **"결과를 만드는 데 CPU 말고 다른 놈을 기다려야 하나"**입니다. 네트워크·디스크·DB·타이머는 기다림이 있으니 Promise, 순수 계산은 즉시 값이에요.
+💡 `res.json()`이 비동기인 게 의외일 수 있는데, `await fetch(...)`가 끝난 시점엔 **헤더만 도착**한 상태라 본문은 아직 흘러들어오는 중이라서 그렇습니다.
+
+**④ 모르겠으면 그냥 찍어본다**
+
+📖 설명용
+
+```js
+const x = 어떤함수();
+console.log(x);
+// Promise { <pending> }  → 상자다. await 필요
+// { login: 'torvalds' }  → 값이다. await 불필요
+```
+
+⚠️ **함정 — `await`을 빼먹어도 에러가 안 납니다.** `user.login`이 조용히 `undefined`가 될 뿐이에요. "왜 값이 undefined지?"의 범인 1순위가 `await` 누락입니다. 🐍 Python은 `await`을 빼먹으면 `RuntimeWarning: coroutine was never awaited`라도 띄워주는데, JS는 아무 말이 없습니다.
+
+💡 **반대 방향은 안전합니다.** Promise가 아닌 값에 `await`을 붙이는 건 **무해**해요 — 그냥 그 값이 그대로 나옵니다.
+
+```js
+const n = await 42;  // 42. 에러 아님
+```
+
+그래서 헷갈릴 땐 **붙이는 쪽이 안전**합니다. (다만 `async` 함수 안에서만)
+
 ### 3-3. 병렬 처리 — `Promise.all`
 
 **① 왜 있나**: 사용자 3명을 조회할 때, 하나씩 `await`하면 순차라 느립니다. **동시에 쏘고 다 모으면** 빨라요.
@@ -430,6 +539,35 @@ console.log(data.login, data.public_repos);
 > compare();
 > ```
 > 💡 `names.map((n) => getUser(n))`는 **Promise들의 배열**을 만들고 `Promise.all`이 그걸 병렬로 기다립니다. Day 1의 `map`이 여기서 이렇게 쓰여요.
+
+#### 잠깐 — 여기서 `n`은 대체 뭔가
+
+선언한 적도 없는 `n`이 갑자기 튀어나와서 당황스러운 지점입니다. 한 줄 답: **`map`에 넘긴 화살표 함수의 매개변수**, 즉 배열 원소가 하나씩 들어오는 자리입니다.
+
+```js
+names.map((n) => getUser(n))
+//         ↑ 이 자리에 "torvalds" → "gaearon" → "sindresorhus" 가 차례로 들어옴
+```
+
+📖 설명용 — `map`이 내부에서 하는 일을 풀어 쓰면
+
+```js
+const promises = [];
+for (const n of names) {        // n = "torvalds" → "gaearon" → "sindresorhus"
+  promises.push(getUser(n));    // getUser("torvalds"), getUser("gaearon"), ...
+}
+// promises === [Promise, Promise, Promise]
+```
+
+**③ 🐍 다리 + JS 설명**: Python의 리스트 컴프리헨션 `[get_user(n) for n in names]`에서 그 `n`과 똑같은 역할입니다. JS 자체 설명으로는 — **`map`은 배열을 돌면서 원소를 하나씩 꺼내 콜백에 인자로 "넣어주고"**, 콜백이 반환한 값을 모아 새 배열을 만듭니다. `n`은 그 "넣어주는 값을 받는 이름"이에요. 2-2에서 `resolve`를 내가 만들지 않고 받아 썼던 것과 같은 구조입니다.
+
+몇 가지만 짚고 갑니다.
+
+- **이름은 아무거나 됩니다.** `n` 대신 `name`, `username`이라 써도 동작은 동일해요. 의미가 드러나는 `(name) => getUser(name)`이 더 읽기 좋습니다.
+- **`n`은 그 화살표 함수 안에서만 삽니다.** `map` 바깥에서 `console.log(n)` 하면 `ReferenceError` — 1-1의 스코프 얘기가 그대로 적용됩니다.
+- **`getUser(n)`은 Promise를 반환**하므로 `names.map(...)`의 결과는 값 3개가 아니라 **상자 3개짜리 배열**입니다. 그리고 `map`이 도는 순간 요청 3개가 이미 나갔어요(2-2의 두 번째 함정). `Promise.all`은 "이미 달리는 셋"의 결과를 모아줄 뿐입니다.
+
+⚠️ **함정 — `names.map(getUser)`로 줄이지 마세요.** 인자가 하나뿐이니 괄호를 없애고 싶어지는데, `map`은 콜백에 `(원소, 인덱스, 배열)` **3개**를 넘깁니다. 지금 `getUser(username)`은 두 번째 인자를 안 쓰니 우연히 동작하지만, 두 번째 인자를 받는 함수라면 인덱스가 슬쩍 끼어들어 버그가 됩니다. 🐍 Python의 `map(get_user, names)`는 인자를 하나만 넘기니 이 함정이 없어요. **`(n) => getUser(n)`으로 감싸는 습관**이 안전합니다. (대표 사례: `["1","2","3"].map(parseInt)` → `[1, NaN, NaN]`)
 
 ⚠️ **`Promise.all`의 성질**: 하나라도 실패(reject)하면 **전체가 실패**합니다. "실패해도 나머지는 받고 싶다"면 `Promise.allSettled`를 씁니다(각각 성공/실패 상태를 배열로 줌).
 
