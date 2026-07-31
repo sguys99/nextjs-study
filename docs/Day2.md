@@ -181,17 +181,132 @@ JS는 **스레드가 하나**입니다. 그런데 파일 다운로드나 API 호
 
 ### 2-2. Promise — "나중에 도착할 값"을 담는 상자
 
-**① 왜 있나**: 옛날엔 "다 되면 이 함수 불러줘"(콜백)를 중첩하다 지옥이 됐습니다(콜백 지옥). Promise는 그걸 깔끔하게 정리한 방식입니다.
-**② 쉬운 설명**: Promise는 **"아직 값은 없지만, 성공하면 값을, 실패하면 에러를 주겠다"는 약속 상자**입니다. 상태는 대기(pending)→성공(fulfilled)/실패(rejected).
-**③ 🐍 다리 + JS 설명**: Python의 코루틴/Future와 비슷합니다. 다만 JS에서는 `fetch` 같은 대부분의 비동기 API가 **Promise를 반환**해요.
+**① 왜 있나**: `fetch("...")`를 부르면 서버 응답이 **지금 당장은 없습니다**. 0.3초쯤 뒤에 와요. 그런데 스레드가 하나라 "올 때까지 멈춰 서서 기다리기"를 하면 브라우저가 통째로 업니다. 그래서 JS는 **값 대신 "값 받으러 오는 표"를 즉시 줍니다.** 그 표가 Promise예요. (옛날엔 "다 되면 이 함수 불러줘"라고 콜백을 넘겼는데, 중첩하다 지옥이 됐습니다 — 콜백 지옥. Promise는 그걸 정리한 방식입니다.)
+
+**② 쉬운 설명 — 카페 진동벨**:
+
+| ☕ 카페 | 🟨 JS |
+|---|---|
+| 커피를 주문함 | `wait(1000)` / `fetch(url)` 호출 |
+| 커피 대신 **진동벨**을 받음 | **Promise 객체**를 받음 (값이 아님!) |
+| 자리에 앉아 딴 일 함 | 다음 줄 코드가 그냥 실행됨 |
+| 벨이 울림 📳 | `resolve(커피)` — 성공(fulfilled) 상태로 전환 |
+| "재료 떨어졌어요" | `reject(에러)` — 실패(rejected) 상태로 전환 |
+| 벨 울리면 가서 받겠다고 예약 | `.then((커피) => ...)` |
+| 벨 울릴 때까지 그 자리에서 대기 | `await` |
+
+핵심은 **Promise가 값이 아니라 "값이 도착할 자리"**라는 겁니다. 상태는 셋 중 하나예요: `pending`(대기) → `fulfilled`(성공) 또는 `rejected`(실패). 한 번 성공/실패로 바뀌면 **다시는 안 바뀝니다.**
+
+> ⌨️ **미니 실습** — `02-async-basics.js`, 상자 안이 비어 있는 걸 눈으로 확인
+> ```js
+> const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+>
+> const p = wait(1000);
+> console.log(p);                          // Promise { <pending> }  ← 아직 안 익음
+> setTimeout(() => console.log(p), 1500);  // Promise { undefined }  ← 다 익음(fulfilled)
+> ```
+
+**③ 🐍 다리 + JS 설명**: Python의 `asyncio.Future`가 정확히 같은 물건입니다. `fut.set_result(값)` ↔ `resolve(값)`, `fut.set_exception(e)` ↔ `reject(e)`.
+
+```python
+fut = loop.create_future()
+loop.call_later(1, fut.set_result, None)   # 1초 뒤 값 채워 넣기
+await fut
+```
+
+JS 자체 설명으로는 — "성공하면 이 값, 실패하면 이 에러를 담기로 예약된 객체"입니다. 그리고 **JS에서는 `fetch`를 비롯한 거의 모든 비동기 API가 이 객체를 반환**합니다.
+
+**④ 최소 예제 — 문제의 그 한 줄 해부**
 
 📖 설명용 — Promise 직접 만들기 (실무에선 직접 만들 일이 드묾, 이해용)
 
 ```js
 const wait = (ms) =>
   new Promise((resolve) => setTimeout(resolve, ms));
-// resolve를 호출하면 "성공" 상태가 되고 값이 흘러나감
 ```
+
+압축이 심해 안 읽히는 게 정상입니다. 풀어 쓰면 이겁니다.
+
+📖 설명용 — 똑같은 코드, 압축 해제 버전
+
+```js
+const wait = (ms) => {
+  const promise = new Promise((resolve) => {
+    // ↑ resolve는 내가 만든 게 아니라 JS가 만들어서 넣어준 함수.
+    //   "이제 성공이야!"라고 선언하는 스위치.
+
+    // 이 안에는 "언제 성공으로 칠 건지"만 적는다.
+    setTimeout(() => {
+      resolve(); // ← 이 순간 promise가 pending → fulfilled 로 바뀜
+    }, ms);
+  });
+
+  return promise; // 스위치는 아직 안 눌렸지만, 상자는 지금 즉시 반환
+};
+```
+
+세 가지만 잡으면 끝납니다.
+
+1. **`new Promise(...)`에 넘기는 함수는 "성공 조건 설명서"**입니다. JS가 이 함수를 *즉시* 한 번 실행해요.
+2. **`resolve`는 정의한 적 없는데 어디서 왔나?** → JS 엔진이 만들어서 인자로 **넣어줍니다.** Day 1의 `arr.map((x) => ...)`에서 `x`를 내가 안 만들었듯, `resolve`도 받아 쓰는 겁니다.
+3. **`setTimeout(resolve, ms)`** 는 `setTimeout(() => resolve(), ms)`의 축약입니다. `resolve` 뒤에 괄호가 없죠? **지금 부르는 게 아니라 "ms 뒤에 이걸 불러줘"라고 함수 자체를 건네는** 겁니다. 🐍 Python `call_later(1, resolve)`와 같아요 — `resolve()`가 아니라 `resolve`.
+
+**⑤ ⚠️ 함정 두 가지**
+
+⚠️ **하나 — `resolve`를 안 부르면 영원히 멈춥니다.**
+
+> ⌨️ **미니 실습** — `02-async-basics.js` (확인 후 `Ctrl+C`로 종료)
+> ```js
+> const neverResolve = () =>
+>   new Promise(() => {
+>     console.log("상자는 만들어짐"); // 이건 즉시 출력됨
+>     // resolve를 부르지 않음!
+>   });
+>
+> const test = async () => {
+>   console.log("기다린다");
+>   await neverResolve();
+>   console.log("이 줄은 영원히 실행 안 됨"); // ← 도달 불가
+> };
+> test();
+> ```
+> 진동벨이 영원히 안 울립니다. **에러도 없이 조용히 멈춰요** — 그래서 더 무섭습니다.
+
+⚠️🐍 **둘 — Promise는 만드는 순간 이미 시작합니다 (Python과 반대!).**
+
+Python 코루틴은 게으릅니다. `asyncio.sleep(1)`을 호출만 하고 `await`을 안 하면 타이머가 **시작조차 안 해요.** JS Promise는 정반대 — **만들어지는 순간 이미 일이 돌아갑니다.** `await`은 "시작해라"가 아니라 **"이미 돌고 있는 거, 결과 나올 때까지 대기"**입니다.
+
+> ⌨️ **미니 실습** — `02-async-basics.js`, 코드 모양은 거의 같은데 시간이 2배 차이납니다
+> ```js
+> const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+>
+> const sequential = async () => {
+>   const t = Date.now();
+>   await wait(1000); // 여기서 타이머 시작 → 1초
+>   await wait(1000); // 끝난 뒤에야 시작 → 또 1초
+>   console.log("순차:", Date.now() - t, "ms"); // 약 2000
+> };
+>
+> const concurrent = async () => {
+>   const t = Date.now();
+>   const a = wait(1000); // ← 타이머 즉시 시작
+>   const b = wait(1000); // ← 이것도 즉시 시작 (둘이 나란히 돎)
+>   await a;
+>   await b;
+>   console.log("동시:", Date.now() - t, "ms"); // 약 1000!
+> };
+>
+> sequential();
+> concurrent();
+> ```
+> 💡 "Promise를 변수에 담아두면 이미 달리기 시작한 상태"라는 이 감각이 세션 3의 `Promise.all`로 그대로 이어집니다.
+
+💡 **정리 — 오늘 가져갈 세 줄**
+1. Promise = 나중에 값이 채워질 **상자**(진동벨). 값 자체가 아니다
+2. `resolve(값)`를 부르는 순간 상자가 열린다 — 안 부르면 영원히 대기
+3. Promise는 **만드는 즉시 실행**된다 (🐍 Python 코루틴과 반대)
+
+그리고 **실무에서 `new Promise`를 직접 쓸 일은 거의 없습니다.** `fetch`·DB 조회·파일 읽기가 전부 이미 Promise를 반환해요. 직접 만드는 건 "JS에 `sleep`이 없어서 손수 만드는" `wait` 같은 예외뿐입니다.
 
 ### 2-3. `async` / `await` — Promise를 동기처럼 읽기
 
