@@ -24,6 +24,7 @@ practice/
 ├── day2/ ...                    ← GitHub 스크립트 원본 (오늘 이식)
 └── day3/                        ← 오늘
     ├── package.json
+    ├── pnpm-workspace.yaml      ← pnpm이 만들어 줌 (빌드 스크립트 허용 목록)
     ├── tsconfig.json            ← 오늘의 새 등장인물
     ├── eslint.config.js / .prettierrc / .vscode/  (Day1에서 복사)
     ├── 01-basic-types.ts
@@ -45,15 +46,41 @@ mkdir -p practice/day3/.vscode
 cd practice/day3
 cp ../day1/eslint.config.js .
 cp ../day1/.prettierrc .
-cp ../day1/.vscode/settings.json .vscode/
+cp ../../.vscode/settings.json .vscode/
 pnpm init
-pnpm add -D typescript tsx
+pnpm add -D typescript@5 tsx
 ```
 
 - `typescript` = 타입 검사기(`tsc`)를 제공. 🐍 mypy에 해당.
 - `tsx` = `.ts` 파일을 **바로 실행**해주는 도구. 🐍 `python script.py`처럼 `tsx script.ts`.
 
-⌨️ 실습 — `practice/day3/package.json`에 `"type": "module"`과 스크립트 추가
+⚠️ **`typescript@5`의 `@5`를 꼭 붙이세요.** 그냥 `typescript`라고 하면 최신인 **7.x**가 깔립니다. TS 7은 컴파일러를 Go로 다시 짠 버전이라 언어 문법은 5와 같지만, **`typescript-eslint`가 아직 TS 7을 peer로 받지 않습니다**(허용 범위 `>=4.8.4 <6.1.0`). Day 5의 Next.js 앱에서 lint 배선이 막히므로 로드맵대로 **5.x로 고정**합니다.
+
+#### pnpm이 `ERR_PNPM_IGNORED_BUILDS`를 뱉는다면
+
+`pnpm add` 직후 이런 메시지가 나옵니다 — **정상입니다.**
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.28.1
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+🎯 **왜 이러나**: 패키지는 설치 시 자기 스크립트(postinstall)를 돌릴 수 있는데, 이게 공급망 공격 통로가 됩니다. 그래서 pnpm 10부터는 **기본적으로 전부 차단**하고 사용자에게 허용 여부를 묻습니다. `esbuild`(tsx의 엔진)는 postinstall로 자기 네이티브 바이너리를 준비하니 허용해야 해요. 🐍 pip에는 이런 관문이 없어서 낯설 겁니다.
+
+```bash
+pnpm approve-builds     # esbuild를 스페이스로 선택 → 엔터 → y
+```
+
+그러면 `pnpm-workspace.yaml`이 생기고 아래처럼 기록됩니다. ⚠️ 만약 값이 `set this to true or false`라는 **안내 문구 그대로 남아 있으면** 이후 모든 `pnpm exec`가 실패하니, `true`로 직접 고치세요.
+
+```yaml
+allowBuilds:
+  esbuild: true
+```
+
+⌨️ 실습 — `practice/day3/package.json`에 `"type"`과 `"scripts"` **두 키를 추가**
+
+⚠️ **파일을 통째로 갈아엎지 마세요.** `pnpm add`가 넣어준 `devDependencies`를 남긴 채 두 줄만 더합니다. 결과는 이런 모양이어야 합니다(버전 번호는 다를 수 있음).
 
 ```json
 {
@@ -61,9 +88,23 @@ pnpm add -D typescript tsx
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
   }
 }
 ```
+
+⚠️ **`devDependencies`를 지우면 벌어지는 일** (아주 흔한 함정): pnpm 11의 `pnpm exec`는 실행 **직전에 node_modules를 package.json과 자동으로 맞춥니다.** 그래서 목록에서 지워진 패키지를 **삭제해 버려요.**
+
+```
+$ pnpm exec tsx 01-basic-types.ts
+Packages: -6                                    ← 조용히 6개를 지움
+[ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL] Command "tsx" not found
+```
+
+🐍 `requirements.txt`에서 줄을 지웠더니 `python`을 부를 때마다 가상환경이 자동으로 그 패키지를 uninstall 하는 셈입니다. **package.json은 "설치된 것의 기록"이 아니라 "설치되어야 할 것의 정의"**예요 — 이 파일이 진실의 원천이고, node_modules가 여기에 맞춰집니다. 이미 지웠다면 `pnpm add -D typescript@5 tsx`로 되살리면 됩니다.
 
 ⌨️ 실습 — `practice/day3/tsconfig.json` 새 파일
 
