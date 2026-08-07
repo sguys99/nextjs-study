@@ -253,12 +253,13 @@ export default App;
 
 브라우저에 "안녕, 광명!"이 뜨면 성공입니다.
 
-### 1-2. JSX의 규칙 4가지 (Python 개발자가 자주 걸림)
+### 1-2. JSX의 규칙 5가지 (Python 개발자가 자주 걸림)
 
 **① `{ }`로 JS 표현식 삽입**: `{name}`, `{scores.length}`, `{2 + 2}`. 🐍 f-string의 `{}`와 비슷한 감각.
 **② `class`가 아니라 `className`**: HTML의 `class`는 JS 예약어라 React는 `className`을 씁니다.
 **③ 반드시 하나의 부모로 감싸기**: 여러 요소를 반환하려면 하나의 `<div>`나 빈 태그 `<>...</>`(Fragment)로 감싸야 합니다.
 **④ 태그는 닫아야**: `<img />`, `<br />`처럼 self-closing도 슬래시 필수.
+**⑤ 주석은 `{/* */}`**: 태그와 태그 **사이**는 "글자를 쓰는 자리"라서, 거기에 `// 메모`라고 쓰면 주석이 아니라 **화면에 그대로 찍히는 글자**가 됩니다.
 
 📖 설명용 — 위 규칙들
 
@@ -271,6 +272,29 @@ return (
   </>
 );
 ```
+
+⚠️ **⑤번은 반드시 한 번 당해봅니다** — 태그 사이에 `//` 주석을 달면 이렇게 됩니다.
+
+```tsx
+<button>
+  +1 // 버튼에 표시될 글자
+</button>
+// → 화면의 버튼에 "+1 // 버튼에 표시될 글자" 가 통째로 찍힘 ❌
+
+<button>
+  +1 {/* 버튼에 표시될 글자 */}
+</button>
+// → 화면의 버튼에 "+1" 만 찍힘 ✅
+```
+
+중괄호 `{}` 안은 **JS 영역**이라 `/* */` 주석이 통합니다. 반대로 `onClick={...}` 안이나 컴포넌트 함수 본문은 원래 JS 영역이라 `//`가 정상 동작해요. **같은 파일 안에서 위치에 따라 주석 문법이 달라지는 게** JSX에서 제일 헷갈리는 부분입니다.
+
+| 어디 | 주석 문법 | 예 |
+|---|---|---|
+| 컴포넌트 함수 본문 (JS 영역) | `//`, `/* */` | `const x = 1;  // 메모` |
+| `{ }` 안 (JS 영역) | `/* */` | `onClick={() => { /* 메모 */ }}` |
+| 태그와 태그 사이 (글자 영역) | **`{/* */}`** | `<p>안녕 {/* 메모 */}</p>` |
+| 태그 속성 자리 | `{/* */}` | `<img {/* 메모 */} src="..." />` |
 
 ### 1-3. 조건부 렌더링 & 리스트 렌더링
 
@@ -335,16 +359,79 @@ function Hello({ name, emoji = "👋" }: HelloProps) {
 ### 2-2. `useState` — 재실행을 넘어 살아남는 값 ⭐
 
 **① 왜 있나**: 컴포넌트 함수는 계속 재실행됩니다(Streamlit 재실행). 그런데 클릭 횟수 같은 값은 재실행돼도 살아남아야 하죠. 그렇게 살아남는 값이 상태(state)입니다.
-**② 쉬운 설명**: `const [값, 값을바꾸는함수] = useState(초깃값)`. 🐍 `st.session_state`와 정확히 같은 역할.
-**③ 규칙**: 상태를 바꿀 땐 **반드시 setter**(`setCount`)를 쓰세요. 변수를 직접 `count = 1`로 바꾸면 React가 모릅니다(화면이 안 바뀜).
 
-⌨️ 실습 — `src/playground/StateDemo.tsx` 새 파일 + `App.tsx`에서 렌더
+#### ② 쉬운 설명 — 한 줄을 분해해서
+
+곧 이런 줄을 칠 겁니다. **치기 전에 이 한 줄부터 완전히 이해하고 갑니다.**
+
+```tsx
+const [count, setCount] = useState(0);
+```
+
+먼저 결론. **`useState`는 2칸짜리 배열을 돌려주는 함수**입니다.
+
+```
+useState(0)  →  [0, ƒ]
+                 ↑   ↑
+              현재값  그 값을 바꾸는 함수 (React가 방금 만들어서 넣어준 것)
+```
+
+이 두 칸을 각각 변수로 꺼내려고 **배열 구조 분해**([Day1 §4-4](Day1.md#L548))를 씁니다. 왼쪽 대괄호가 그거예요.
+
+```tsx
+const [count, setCount] = useState(0);
+//     ↑      ↑
+//     │      └─ 1번 칸(함수)을 "setCount"라는 이름으로 받겠다
+//     └──────── 0번 칸(값)을 "count"라는 이름으로 받겠다
+```
+
+⭐ **여기가 제일 헷갈리는 지점**: `count`도 `setCount`도 **React가 정해준 이름이 아닙니다. 내가 지금 지은 이름입니다.** 배열 구조 분해는 이름이 아니라 **순서**로 꺼내기 때문에, 이렇게 써도 완전히 똑같이 동작합니다.
+
+```tsx
+const [n, changeN] = useState(0);   // 동작 100% 동일. 이름만 다름
+```
+
+그럼 왜 다들 `setCount`라고 쓰냐 — **관례**입니다. `x` / `setX` 짝으로 이름 붙이기로 커뮤니티가 합의해서, 남이 읽을 때 "아 얘가 상태고 얘가 그걸 바꾸는 함수구나"가 즉시 보이거든요.
+
+⚠️ 그래서 **`setCount`라는 함수는 React 어딘가에 정의돼 있는 게 아닙니다.** `useState(0)`를 호출하는 그 순간 React가 함수를 하나 **만들어서** 배열 1번 칸에 담아 돌려주고, 나는 거기에 `setCount`라는 이름표를 붙이는 겁니다.
+
+#### ③ 🐍 Python으로 쓰면 이런 구조
+
+가짜 구현이지만 **구조는 정확합니다.**
+
+```python
+def use_state(초깃값):
+    def 세터(새값):
+        ...  # ① 저장소에 새 값 기록  ② "화면 다시 그려"라고 예약
+    return 저장된_값, 세터
+
+count, set_count = use_state(0)   # ← 파일 어디에도 def set_count 는 없다
+```
+
+`set_count`를 아무리 찾아도 `def set_count`가 안 나옵니다. `use_state` 안에서 만들어져 나온 함수니까요. **React의 `setCount`도 정확히 이 상태입니다.**
+
+**JS 자체 설명**: 함수가 함수를 만들어서 반환하는 건 JS에서 아주 흔한 패턴입니다. 그렇게 나온 함수는 **자기를 만든 함수 안의 정보를 기억한 채로** 나옵니다. `setCount`가 기억하는 정보는 "어느 컴포넌트의, 몇 번째 상태 칸인지"예요. 그래서 그냥 호출만 해도 자기가 어디를 고쳐야 하는지 압니다.
+
+#### ④ 그래서 `setCount(1)`은 정확히 뭘 하나 — 딱 두 가지
+
+1. **값을 저장한다** — React 내부 저장소의 "이 컴포넌트의 이 상태 칸"에 `1`을 기록
+2. **재렌더를 예약한다** — "이 컴포넌트 함수를 처음부터 다시 실행해라"
+
+**2번이 핵심입니다.** 이게 있어서 화면이 바뀝니다.
+
+#### ⑤ 규칙 — 상태를 바꿀 땐 반드시 setter
+
+변수를 직접 `count = 1`로 바꾸면 위의 **2번이 없습니다.** React는 아무것도 모르고, 컴포넌트 함수는 다시 실행되지 않고, 화면은 그대로예요. 게다가 `count`는 함수 안의 지역 변수라 다음 렌더 때 새로 만들어지므로 그 변경은 흔적도 없이 사라집니다.
+
+⌨️ 실습 (1/2) — `src/playground/StateDemo.tsx` 새 파일
 
 ```tsx
 import { useState } from "react";
 
 function StateDemo() {
-  const [count, setCount] = useState(0);   // 초깃값 0
+  // useState(0) → [0, ƒ] 를 반환. 두 칸을 구조 분해로 꺼내 이름을 붙인다
+  // count / setCount 는 React가 정한 이름이 아니라 내가 지은 이름
+  const [count, setCount] = useState(0);   // 0 = 첫 렌더에서만 쓰이는 초깃값
 
   return (
     <div>
@@ -353,7 +440,7 @@ function StateDemo() {
         className="border px-3 py-1 rounded"
         onClick={() => setCount(count + 1)}
       >
-        +1
+        +1 {/* 버튼에 표시되는 글자. 여기 주석은 이 형태여야 함 — §1-2 ⑤ */}
       </button>
     </div>
   );
@@ -362,7 +449,57 @@ function StateDemo() {
 export default StateDemo;
 ```
 
-버튼을 누르면 숫자가 오릅니다. **버튼 클릭 → `setCount` → 컴포넌트 재실행 → 새 `count`로 화면 갱신**. 이 흐름이 React의 심장입니다.
+⭐ **파일만 만들면 화면엔 아무 일도 일어나지 않습니다.** React는 `App` 하나에서 출발해 **거기서 불린 컴포넌트만** 그리거든요. 그래서 `App.tsx`에 등록하는 단계가 항상 한 번 더 필요합니다.
+
+⌨️ 실습 (2/2) — `src/App.tsx`를 아래로 교체 (§1의 `JsxDemo`와 나란히 띄우기)
+
+```tsx
+import JsxDemo from "./playground/JsxDemo";
+import StateDemo from "./playground/StateDemo";   // ① import 하고
+
+function App() {
+  return (
+    <div className="p-8">
+      <JsxDemo />
+      <StateDemo />                                {/* ② 태그로 불러야 화면에 나옴 */}
+    </div>
+  );
+}
+
+export default App;
+```
+
+💡 `pnpm dev`가 켜져 있다면 저장하는 순간 브라우저가 갱신됩니다. 점수판(JsxDemo) 아래에 카운터가 뜨면 성공이에요.
+⚠️ **자주 하는 실수**: `import`만 하고 `<StateDemo />`를 안 쓰면 화면엔 아무것도 안 나옵니다(린터가 "안 쓴 변수"라고 경고해 줍니다). 반대로 `import` 없이 태그만 쓰면 `StateDemo is not defined` 에러가 나요. **①과 ②는 항상 세트**입니다.
+
+버튼을 누르면 숫자가 오릅니다. **클릭 한 번에 무슨 일이 벌어지는지** 따라가 봅시다.
+
+```
+① 첫 렌더
+   React가 StateDemo() 를 실행
+   → useState(0) 이 [0, setCount] 를 반환  →  count = 0
+   → 화면: "카운트: 0"
+
+② 버튼 클릭 → onClick 실행 → setCount(0 + 1)
+   → React: 저장소에 1 기록 + "StateDemo 다시 실행" 예약
+   (이 시점에 count 는 아직 0. 함수가 다시 실행돼야 바뀜)
+
+③ React가 StateDemo() 를 처음부터 다시 실행
+   → useState(0) 이 이번엔 [1, setCount] 를 반환  →  count = 1
+   → 화면: "카운트: 1"
+```
+
+③에서 **`useState(0)`이 0이 아니라 1을 돌려주는 게** 포인트입니다. `0`은 **첫 렌더에서만 쓰이는 초깃값**이고, 그 뒤로는 React가 저장해둔 값이 나옵니다. 이 흐름이 React의 심장이에요.
+
+⚠️ **`onClick`에 왜 `() =>`를 붙이나** — 이것도 처음 보면 걸립니다.
+
+```tsx
+onClick={() => setCount(count + 1)}   // ✅ "클릭되면 실행할 함수"를 넘김
+onClick={setCount(count + 1)}         // ❌ 지금 당장 실행하고 그 결과를 넘김
+```
+
+`onClick`이 원하는 건 **함수 자체**입니다("나중에 클릭되면 이걸 실행해줘"). 아래처럼 쓰면 렌더되는 순간 `setCount`가 호출돼 버리고, 그게 또 재렌더를 부르고… 무한 루프가 납니다. 그래서 **실행할 코드를 화살표 함수로 한 겹 감싸서** 넘깁니다.
+🐍 Python이면 `button.on_click(handler)` vs `button.on_click(handler())`의 차이 — 괄호를 붙이는 순간 "함수를 넘기는 것"이 "호출 결과를 넘기는 것"으로 바뀌는 그 함정과 같습니다.
 
 ### 2-3. ⚠️ 스냅샷 모델 — "이번 렌더에서 count는 고정된 사진"
 
@@ -459,7 +596,7 @@ useEffect(() => {
 
 **① 왜 있나**: 타이머·구독처럼 "켠 걸 꺼야" 하는 것들. effect가 반환한 함수가 **다음 실행 전 / 컴포넌트가 사라질 때** 호출됩니다.
 
-⌨️ 실습 — `src/playground/EffectDemo.tsx` 새 파일 + `App.tsx`에서 렌더
+⌨️ 실습 (1/2) — `src/playground/EffectDemo.tsx` 새 파일
 
 ```tsx
 import { useState, useEffect } from "react";
@@ -480,6 +617,28 @@ function EffectDemo() {
 
 export default EffectDemo;
 ```
+
+⌨️ 실습 (2/2) — `src/App.tsx`에 등록 (§2-2와 같은 패턴. import + 태그 세트)
+
+```tsx
+import JsxDemo from "./playground/JsxDemo";
+import StateDemo from "./playground/StateDemo";
+import EffectDemo from "./playground/EffectDemo";
+
+function App() {
+  return (
+    <div className="p-8">
+      <JsxDemo />
+      <StateDemo />
+      <EffectDemo />
+    </div>
+  );
+}
+
+export default App;
+```
+
+숫자가 1초마다 오르면 성공입니다.
 
 ⚠️ **클린업을 빼먹으면**: 컴포넌트가 다시 마운트될 때 타이머가 쌓여 숫자가 2씩, 3씩 뛰는 버그가 생깁니다. **"켠 건 반드시 끈다"**가 규칙이에요.
 💡 `setSeconds((prev) => prev + 1)`에서 **함수형 업데이트**를 쓴 이유: effect는 처음 한 번만 도는데, 그 안의 `seconds`는 0으로 고정된 스냅샷이라 `seconds + 1`을 쓰면 계속 1만 됩니다. `prev`를 쓰면 항상 최신값을 봅니다. (§2-3의 스냅샷 함정이 여기서 재등장!)
@@ -657,6 +816,8 @@ export function useAutoScroll(dep: unknown) {
 
 ### 4-6. 전체 조립 — `App.tsx`
 
+💡 여기서 `App.tsx`를 통째로 갈아엎으므로 **세션 1~3에서 띄워둔 playground 데모(`JsxDemo`·`StateDemo`·`EffectDemo`)는 화면에서 사라집니다.** 정상이에요 — 파일은 그대로 남아 있고, `App.tsx`가 더 이상 부르지 않을 뿐입니다. 다시 보고 싶으면 `import`와 태그를 도로 넣으면 됩니다.
+
 ⌨️ 실습 — `src/App.tsx`를 아래로 교체
 
 ```tsx
@@ -760,7 +921,8 @@ React 에러는 브라우저 **콘솔(DevTools)**에 뜹니다. `F12`로 DevTool
 
 - [ ] Vite와 Tailwind가 각각 무슨 일을 하는 도구인지 한 줄로 설명 가능
 - [ ] "화면 = 상태의 함수" 사고를 Streamlit 비유로 설명 가능
-- [ ] JSX 규칙(`{}`, `className`, Fragment, `key`)과 조건부/리스트 렌더링
+- [ ] JSX 규칙(`{}`, `className`, Fragment, `{/* 주석 */}`, `key`)과 조건부/리스트 렌더링
+- [ ] 컴포넌트를 새로 만들면 `App.tsx`에 **import + 태그** 두 가지를 모두 해야 화면에 나온다는 것
 - [ ] props를 `interface`로 타이핑 + 매개변수 구조 분해
 - [ ] `useState` + **스냅샷 함정**(함수형 업데이트 `setX(prev=>...)`)
 - [ ] **불변 업데이트**(`[...prev, x]`)의 이유 설명 가능
