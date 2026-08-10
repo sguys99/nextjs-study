@@ -690,51 +690,109 @@ export interface Message {
 
 ### 4-2. 메시지 하나 — `MessageItem`
 
+말풍선 **한 개**만 그리는 가장 작은 컴포넌트입니다. 상태도 이벤트도 없이 **받은 props를 화면으로 변환만** 하는 순수 함수예요.
+
 ⌨️ 실습 — `src/components/MessageItem.tsx`
 
 ```tsx
-import type { Message } from "../types";
+import type { Message } from "../types";   // 타입만 가져오기 (실행 코드 아님)
 
 interface Props {
-  message: Message;
+  message: Message;                        // 이 컴포넌트가 받을 재료의 설계도
 }
 
-function MessageItem({ message }: Props) {
-  const isUser = message.role === "user";
+function MessageItem({ message }: Props) {   // { } = 구조 분해로 꺼내며 받기
+  const isUser = message.role === "user";    // === 는 엄격 비교 (== 쓰지 말 것)
   return (
+    // 바깥 div = 정렬 담당. 내 말풍선은 오른쪽, 상대는 왼쪽
     <div className={isUser ? "text-right" : "text-left"}>
       <span
         className={
-          "inline-block rounded-lg px-3 py-2 " +
+          "inline-block rounded-lg px-3 py-2 " +   // ⚠️ 끝의 공백 필수!
           (isUser ? "bg-blue-500 text-white" : "bg-gray-200 text-black")
         }
       >
-        {message.text}
+        {message.text}                     {/* { } = 여기부터 JS 값 */}
       </span>
     </div>
   );
 }
 
-export default MessageItem;
+export default MessageItem;                // 파일당 1개인 "대표 수출품"
 ```
+
+#### 📖 한 줄씩 뜯어보기
+
+| 코드 | 뜻 | 🐍 Python 다리 |
+|------|-----|----------------|
+| `import type { ... }` | **타입만** 가져옴. 컴파일 후 이 줄은 사라집니다(번들 크기 0) | `if TYPE_CHECKING:` 자리. 단 JS는 진짜로 지워져 순환 import 사고도 안 남 |
+| `interface Props` | 받을 props의 모양. 실행 코드가 아니라 **약속**일 뿐 | `TypedDict`/`dataclass`로 인자 모양을 미리 적어두는 것 |
+| `({ message }: Props)` | props 객체에서 `message`만 꺼내며 받기(구조 분해) | 딕셔너리를 받자마자 원하는 키만 변수로 푸는 문법 |
+| `isUser ? A : B` | 삼항연산자 — 조건이 참이면 A, 아니면 B | `A if 조건 else B` |
+| `className` | HTML의 `class`. JS 예약어 `class`와 겹쳐 이름이 다름 | — |
+| `{message.text}` | JSX 안에서 JS 값 꽂아넣기. React가 자동 이스케이프하므로 XSS 안전 | Jinja의 `{{ }}`와 비슷하지만 **문자열이 아니라 코드** |
+
+- **컴포넌트 = props를 받아 JSX를 반환하는 그냥 함수**입니다. 클래스도, 상속도 없습니다.
+- ⚠️ 컴포넌트 이름은 **반드시 대문자로 시작**. 소문자면 React가 `<div>` 같은 HTML 태그로 오해합니다.
+- `span`은 inline 요소라 원래 상하 여백이 안 먹습니다. `inline-block`을 줘야 "글자만큼만 폭 + padding 적용 가능"이 됩니다.
+
+#### 🐍 왜 `Message`를 바로 안 쓰고 `Props`로 감쌌나
+
+**React 컴포넌트는 인자를 딱 1개만 받기 때문**입니다. JSX는 결국 이렇게 호출돼요.
+
+📖 설명용
+
+```tsx
+<MessageItem message={m} />      // 내가 쓴 JSX
+MessageItem({ message: m })      // React가 실제로 호출하는 모습 — 인자 1개!
+```
+
+Python이면 `def MessageItem(message, on_delete, is_last)`처럼 인자를 나열하면 그만이지만, React는 **모든 값을 객체 하나에 담아** 넘깁니다. 그 봉투의 타입 이름이 관례적으로 `Props`예요. 즉 **`Message`는 편지 내용, `Props`는 봉투** — 지금은 편지 한 장뿐이라 같아 보일 뿐입니다.
+
+봉투를 따로 두는 실익은 두 가지입니다.
+
+- **데이터 모델이 UI에 인질로 잡히지 않습니다.** `Message`는 Day 6에 `/api/chat`과 주고받을 **데이터 계약**이라 필드가 늘어납니다. 이게 곧 props 타입이면 서버 응답이 바뀔 때마다 호출부가 흔들려요.
+- **props는 데이터가 아닌 것도 받습니다.** 곧 `onDelete: (id: string) => void`(콜백)나 `isLast: boolean`(화면 사정) 같은 게 붙는데, 이런 건 `Message`에 넣을 수 없죠.
+
+💡 필드가 하나뿐이면 `({ message }: { message: Message })`처럼 인라인으로 써도 됩니다. `Props`라는 이름도 문법이 아니라 **관례**라서 `interface Banana`여도 동작해요. 다만 한 파일에 컴포넌트가 여럿이면 `MessageItemProps`처럼 이름을 붙이는 게 표준입니다.
+
+#### ⚠️ 이 파일에서 흔한 실수 3가지
+
+1. **클래스 문자열 이어붙일 때 공백 누락** — `"...py-2" + "bg-blue-500"` → `py-2bg-blue-500`이 되어 **두 클래스 모두 무효**가 됩니다. 스타일이 통째로 안 먹으면 여기부터 의심하세요.
+2. **props를 직접 수정** — `message.text = "..."`는 금지입니다. 화면을 바꾸려면 상태를 가진 부모가 `setMessages`로 **새 props를 내려줘야** 합니다. 🐍 인자로 받은 리스트를 in-place로 고치지 않는 원칙과 같은 결.
+3. **`id`를 안 써서 당황** — `Message`엔 `id`가 있는데 여기선 안 씁니다. `id`는 부모 `MessageList`가 `key`로 쓰는 값이라 자식은 몰라도 돼요(바로 다음 절).
+
+> ⌨️ **미니 실습**: 말풍선이 화면 폭을 다 먹지 않도록 `span`의 공통 클래스에 `max-w-[70%]`를 추가해 보세요. 긴 메시지를 넣어 줄바꿈되는지 확인합니다.
 
 ### 4-3. 메시지 목록 — `MessageList`
 
-⌨️ 실습 — `src/components/MessageList.tsx`
+`MessageItem`은 말풍선 **한 개**만 그립니다. 그럼 **배열 전체**를 그리는 건 누구 일일까요? 그게 `MessageList`예요. 하는 일이 딱 두 가지뿐인 얇은 컴포넌트입니다 — **① 배열을 돌며 `MessageItem`을 뿌리고, ② 그것들을 담을 스크롤 상자를 씌운다.**
+
+🐍 Python으로 쓰면 이 정도 분량입니다. **로직이 아니라 "반복 + 껍데기"가 전부**라는 감각으로 보세요.
+
+```python
+def message_list(messages):
+    return box([message_item(m) for m in messages])   # 리스트 컴프리헨션 자리 = .map
+```
+
+⌨️ 실습 — `src/components/MessageItem.tsx`와 같은 폴더에 `src/components/MessageList.tsx`
 
 ```tsx
-import type { Message } from "../types";
-import MessageItem from "./MessageItem";
+import type { Message } from "../types";   // 타입만 (§4-2와 동일)
+import MessageItem from "./MessageItem";   // 자식 컴포넌트를 데려온다 (default export라 { } 없음)
 
 interface Props {
-  messages: Message[];
+  messages: Message[];   // 메시지 "한 개"가 아니라 "배열". Day 3의 배열 타입 표기
 }
 
 function MessageList({ messages }: Props) {
   return (
+    // 이 div = 말풍선들을 담는 스크롤 상자. 클래스 뜻은 아래 표 참고
     <div className="flex flex-col gap-2 p-4 h-96 overflow-y-auto border rounded">
+      {/* { } 안은 JS 영역 → 배열을 map으로 "JSX 배열"로 바꾸면 React가 알아서 나열해 그린다 */}
       {messages.map((m) => (
-        <MessageItem key={m.id} message={m} />   {/* 고유 id를 key로 */}
+        // key = React가 항목을 구별하는 이름표. 인덱스 말고 고유 id를 쓴다
+        <MessageItem key={m.id} message={m} />
       ))}
     </div>
   );
@@ -742,6 +800,83 @@ function MessageList({ messages }: Props) {
 
 export default MessageList;
 ```
+
+⌨️ 아직 `App.tsx`에 등록하지 않았으니 **화면엔 아무 변화가 없습니다.** 정상이에요 — §4-6에서 한꺼번에 조립합니다. 지금은 저장 후 터미널에 빨간 에러만 안 뜨면 통과입니다.
+
+#### 📖 한 줄씩 뜯어보기
+
+| 코드 | 뜻 | 🐍 Python 다리 |
+|------|-----|----------------|
+| `import MessageItem from "./MessageItem"` | **default export를 받는 문법** — `{ }`가 없습니다. 내보낸 쪽이 `export default`라서 이름은 내 마음대로 지어도 동작(관례상 같게 씀) | `from .message_item import MessageItem`에 가깝지만, 이름이 아니라 **"그 파일의 대표 수출품"** 을 받는 것 |
+| `messages: Message[]` | `Message` 객체들의 배열. `[]`가 "여러 개"를 뜻함 | `list[Message]` |
+| `{messages.map(...)}` | 배열 → JSX 배열로 **변환**. React는 JSX 배열을 받으면 순서대로 다 그림 | `[message_item(m) for m in messages]` |
+| `(m) => ( ... )` | 화살표 함수. 몸통이 **소괄호**면 그 값을 **바로 반환**(`return` 불필요) | `lambda m: ...` |
+| `key={m.id}` | React가 diff할 때 쓰는 **이름표**. props가 아니라 **React 전용 예약 속성** | 딕셔너리의 키처럼 "이 항목이 그 항목이 맞다"는 신원 확인용 |
+| `message={m}` | 자식에게 내려주는 진짜 props. §4-2의 `Props.message`로 들어감 | `MessageItem(message=m)` |
+
+**📖 상자 클래스 6개** — 각각 한 가지 일만 합니다.
+
+| 클래스 | 하는 일 | 빼면 어떻게 되나 |
+|---|---|---|
+| `flex` `flex-col` | 자식을 **세로로** 쌓음 | 말풍선 정렬(`text-right`)이 어긋나 보일 수 있음 |
+| `gap-2` | 말풍선 사이 간격 8px | 말풍선끼리 딱 붙음 |
+| `p-4` | 상자 안쪽 여백 | 말풍선이 테두리에 닿음 |
+| `h-96` | **높이를 384px로 고정** | 상자가 내용만큼 계속 늘어남 → 스크롤이 안 생김 |
+| `overflow-y-auto` | 내용이 넘치면 **세로 스크롤바** | 넘친 메시지가 잘려서 안 보임 |
+| `border` `rounded` | 테두리 + 둥근 모서리 | 상자 경계가 안 보임(기능엔 영향 없음) |
+
+⭐ **`h-96` + `overflow-y-auto`는 한 세트**입니다. 높이가 고정돼야 "넘친다"는 상황이 생기고, 그래야 스크롤이 나옵니다. §4-5의 자동 스크롤도 이 스크롤 상자가 있어야 의미가 있어요.
+
+#### ⭐ `key`를 다시 짚고 갑니다 (§1-3 회수)
+
+메시지가 3개 있다가 맨 앞에 하나가 추가됐다고 해봅시다. React는 새 결과와 옛 결과를 비교해 **"바뀐 것만"** 실제 DOM에 반영하는데(§0 배경), 이때 **누가 누구인지**를 `key`로 판단합니다.
+
+```
+key={m.id}  →  ["a1", "b2", "c3"]  →  ["z0", "a1", "b2", "c3"]
+               React: "z0이 새로 왔네" → 말풍선 1개만 추가 ✅
+
+key={i}     →  [0, 1, 2]          →  [0, 1, 2, 3]
+               React: "0번 내용이 바뀌고, 1번도 바뀌고, 2번도… 3번은 새 거"
+               → 전부 갈아엎음. 느리고, 입력 상태가 엉뚱한 항목으로 옮겨붙음 ❌
+```
+
+그래서 §4-1 `types.ts`에 `id: string`을 넣어뒀고, §4-6에서 `crypto.randomUUID()`로 채웁니다. **"목록이 끝에만 추가되고 절대 안 변한다"면 인덱스도 괜찮지만, 습관은 처음부터 id로** 들이는 게 낫습니다.
+
+⚠️ `key`는 **props가 아닙니다.** 자식에서 `props.key`로 읽으려 하면 `undefined`이고 경고가 뜹니다. React가 중간에서 가로채 자기가 쓰고 자식에겐 안 넘겨요. 자식이 id를 정말 써야 하면 `<MessageItem key={m.id} id={m.id} ... />`처럼 **따로 한 번 더** 넘겨야 합니다.
+
+#### 🐍 왜 이 컴포넌트엔 `useState`가 없나
+
+`MessageList`는 **자기 데이터를 하나도 안 가집니다.** `messages`를 위(`App`)에서 받아 그리기만 해요. 이런 걸 **표현 컴포넌트(presentational component)** 라고 부릅니다.
+
+React의 데이터는 **위에서 아래로만 흐릅니다**(단방향 데이터 흐름). 상태는 그게 필요한 가장 위쪽 한 곳(`App`)이 소유하고, 아래로는 props로 내려주기만 해요. 그래서 화면이 이상할 때 **범인을 찾는 방향이 항상 위쪽 하나**로 정해집니다 — 데이터가 사방에서 바뀌던 명령형 시절의 지옥이 이걸로 사라졌어요.
+
+🐍 순수 함수로 뷰를 짜고 상태는 한 군데(`st.session_state`)에만 모아두는 Streamlit 습관과 정확히 같습니다. 여기선 그 `session_state` 자리가 `App`의 `useState`예요.
+
+#### ⚠️ 이 파일에서 흔한 실수 4가지
+
+1. **`{/* 주석 */}`을 `map` 안 엉뚱한 자리에 넣음** — 아래는 **문법 에러**입니다. `(m) => ( ... )`의 괄호 안은 "값 하나"만 올 수 있는 JS 영역이라, 요소와 주석 **두 개**가 되어 버려요.
+   ```tsx
+   {messages.map((m) => (
+     <MessageItem key={m.id} message={m} />  {/* ❌ 여긴 태그 사이가 아니라 JS 영역 */}
+   ))}
+   ```
+   이 자리엔 위 실습처럼 **요소 위쪽에 `//` 주석**을 쓰세요. §1-2 표의 "위치에 따라 주석 문법이 달라진다"가 실제로 물리는 첫 지점입니다.
+2. **`.map` 대신 `.forEach`** — `forEach`는 **아무것도 반환하지 않아**(`undefined`) 화면이 텅 빕니다. 에러도 안 나서 제일 헷갈려요. 🐍 리스트 컴프리헨션 자리에 `for` 문을 쓴 셈입니다.
+3. **화살표 함수 몸통에 `{ }`를 쓰고 `return`을 빼먹음** — `(m) => { <MessageItem ... /> }`는 반환값이 없어 역시 화면이 빕니다. `{ }`를 쓸 거면 `return`을 붙이세요. (그래서 다들 소괄호 `( )`를 씁니다.)
+4. **`.map` 전체를 `{ }`로 안 감쌈** — `<div> messages.map(...) </div>`처럼 쓰면 그 글자가 **화면에 그대로 찍힙니다.** 태그 사이는 "글자 자리"라서, JS를 실행하려면 `{ }`로 문을 열어줘야 해요.
+
+> ⌨️ **미니 실습 (조건부 렌더링 §1-3 회수)** — 메시지가 하나도 없을 때 빈 상자만 덩그러니 보이면 허전하죠. 안내 문구를 띄워 보세요.
+> ```tsx
+> <div className="flex flex-col gap-2 p-4 h-96 overflow-y-auto border rounded">
+>   {messages.length === 0 && (
+>     <p className="text-gray-400">아직 메시지가 없습니다. 아래에 입력해 보세요.</p>
+>   )}
+>   {messages.map((m) => (
+>     <MessageItem key={m.id} message={m} />
+>   ))}
+> </div>
+> ```
+> 💡 `{조건 && <JSX />}`는 "조건이 참일 때만 그린다"는 뜻입니다. ⚠️ 단, `{messages.length && ...}`처럼 **숫자를 그대로 쓰면 안 됩니다** — 배열이 비었을 때 `0`이 화면에 그대로 찍혀요. 반드시 `=== 0`이나 `> 0`으로 **참/거짓으로 만든 뒤** 씁니다.
 
 ### 4-4. 입력창 — `ChatInput` (⚠️ 한글 입력 버그 포함)
 
