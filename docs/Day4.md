@@ -880,39 +880,55 @@ React의 데이터는 **위에서 아래로만 흐릅니다**(단방향 데이�
 
 ### 4-4. 입력창 — `ChatInput` (⚠️ 한글 입력 버그 포함)
 
+앞의 두 컴포넌트는 **받은 걸 그리기만** 했습니다. `ChatInput`은 처음으로 **자기 상태를 갖고**, 처음으로 **사용자 이벤트를 받고**, 처음으로 **부모에게 무언가를 알립니다.** 오늘 배운 조각이 전부 한 파일에서 만나는 지점이에요.
+
+하는 일을 한 문장으로 적으면 이렇습니다 — **"입력창의 글자를 내가 붙들고 있다가, Enter나 전송 버튼이 눌리면 그 글자를 부모에게 넘기고 나는 비운다."**
+
+🐍 Streamlit이면 두 줄입니다.
+
+```python
+text = st.text_input("메시지")     # 값 보관 + 화면 그리기를 st가 한꺼번에 해줌
+if st.button("전송"):
+    on_send(text)                  # 상위 로직에 넘김
+```
+
+React는 이 두 줄이 **세 조각으로 쪼개져 있습니다** — 값 보관(`useState`), 화면에 보이기(`value`), 갱신(`onChange`). 귀찮아 보이지만 그 대가로 "전송 직전에 공백 다듬기", "빈 값이면 버튼 끄기", "한글 조합 중이면 Enter 무시" 같은 걸 **전부 내가 통제**할 수 있습니다. 아래 IME 버그가 바로 그 통제권이 필요한 이유예요.
+
 ⌨️ 실습 — `src/components/ChatInput.tsx`
 
 ```tsx
 import { useState } from "react";
 
 interface Props {
-  onSend: (text: string) => void;   // 부모에게 "이 텍스트 보내줘"라고 알림
+  onSend: (text: string) => void;   // 부모가 내려준 "다 되면 이걸 불러" 함수 (콜백)
 }
 
 function ChatInput({ onSend }: Props) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState("");   // 입력 중인 글자는 이 컴포넌트가 소유
 
+  // 전송 절차를 한 곳에 모아둔다 — Enter와 버튼이 똑같이 이걸 부른다
   const submit = () => {
-    const trimmed = text.trim();
-    if (!trimmed) return;      // 빈 입력 무시
-    onSend(trimmed);
-    setText("");               // 전송 후 입력창 비우기
+    const trimmed = text.trim();   // 앞뒤 공백 제거한 "새 문자열"
+    if (!trimmed) return;          // 빈 입력이면 아무것도 안 하고 빠져나감
+    onSend(trimmed);               // 부모에게 넘김 — 여기서 내 일은 끝
+    setText("");                   // 내 입력창만 비운다
   };
 
   return (
     <div className="flex gap-2 mt-2">
       <input
         className="flex-1 border rounded px-3 py-2"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        value={text}                                  // ① 보여줄 값은 state에서 온다
+        onChange={(e) => setText(e.target.value)}     // ② 글자가 바뀌면 state를 갱신
         onKeyDown={(e) => {
-          // ⚠️ 한글 IME 조합 중 Enter는 무시해야 함 (아래 설명)
+          // ⚠️ 한글 조합 중(isComposing)의 Enter는 "글자 확정"용이라 무시해야 한다
           if (e.key === "Enter" && !e.nativeEvent.isComposing) {
             submit();
           }
         }}
         placeholder="메시지를 입력하세요"
       />
+      {/* onClick={submit} — 괄호 없이! 괄호를 붙이면 렌더 중에 즉시 실행된다 */}
       <button className="border rounded px-4 py-2" onClick={submit}>
         전송
       </button>
@@ -923,31 +939,359 @@ function ChatInput({ onSend }: Props) {
 export default ChatInput;
 ```
 
-⚠️⚠️ **한글 IME + Enter 버그 (꼭 이해)**: 한글은 자음·모음을 **조합**해 글자를 만듭니다("ㅎ"+"ㅏ"+"ㄴ" → "한"). 이 조합을 확정하려고 Enter를 누르면 그 Enter가 **전송으로 오작동**해 마지막 글자가 잘리거나 두 번 전송됩니다. `e.nativeEvent.isComposing`이 **지금 조합 중인지**를 알려주니, 조합 중이면(`true`) Enter를 무시합니다. **한국어 앱에서 필수 처리**예요. (영어만 쓰면 안 겪어서 놓치기 쉬움)
+⌨️ 이 파일도 아직 `App.tsx`에 등록하지 않았으니 **화면엔 변화가 없습니다.** §4-6에서 조립해요. 저장 후 빨간 에러만 없으면 통과입니다.
+
+#### 📖 한 줄씩 뜯어보기
+
+| 코드 | 뜻 | 🐍 Python 다리 |
+|------|-----|----------------|
+| `onSend: (text: string) => void` | **함수 타입** props. "문자열 하나 받고 아무것도 안 돌려주는 함수"를 받겠다는 선언 (Day 3) | `Callable[[str], None]` |
+| `useState("")` | 초깃값이 `""`이라 타입이 `string`으로 **추론**됨. `useState<string>("")`까지 안 써도 됨 | — |
+| `const submit = () => {...}` | 화살표 함수를 상수에 담음. 렌더될 때마다 새로 만들어지지만 지금은 문제 없음(§3-4) | 함수 안에 함수 정의 |
+| `text.trim()` | 앞뒤 공백을 뗀 **새 문자열**을 반환. `text` 자체는 안 변함 | `s.strip()` — 문자열 불변인 것도 같음 |
+| `if (!trimmed) return;` | 빈 문자열 `""`은 **falsy**라 `!""`는 `true` (Day 1 §2-5) | `if not s: return` |
+| `value={text}` + `onChange` | **제어 컴포넌트** 한 쌍 (§2 연습문제에서 예고) | — |
+| `e.target.value` | 이벤트가 일어난 DOM 요소(`target`)의 **현재 입력값** | — |
+| `onKeyDown` | 키를 **누르는 순간** 발생. 브라우저 이벤트 이름은 `keydown`, React에선 camelCase | — |
+| `e.nativeEvent` | React가 한 겹 감싼 이벤트 안에 든 **브라우저 원본 이벤트** | 래퍼 객체에서 원본을 꺼내 쓰는 것 |
+| `onClick={submit}` | 함수 **자체**를 넘김. `submit()`이면 "지금 실행한 결과"를 넘기는 셈 | `f`를 넘기기 vs `f()`를 넘기기 |
+
+#### ⭐ 콜백 — 정의는 내가, 호출은 React가
+
+이 코드를 처음 보면 **"`onChange`는 함수를 만들어 놓기만 하고 아무도 안 쓰는 것 같다"** 는 느낌이 듭니다. 실제로 이 파일 어디에도 `onChange(...)`를 호출하는 줄이 없거든요. 맞습니다 — **내가 안 부릅니다. React가 부릅니다.**
+
+`onChange={...}`는 변수 선언이 아니라 **`<input>`에게 넘기는 props**입니다. §4-2에서 `<MessageItem message={m} />`로 데이터를 넘겼죠? 문법이 똑같아요. 넘기는 게 데이터가 아니라 **함수**일 뿐입니다.
+
+```tsx
+<MessageItem message={m} />                            // 값을 넘김
+<input onChange={(e) => setText(e.target.value)} />    // 함수를 넘김
+```
+
+React는 이 함수를 받아 실제 DOM에 **이벤트 리스너로 등록해 둡니다.** 그리고 키가 눌리는 순간 나 대신 호출해요.
+
+```
+사용자가 'ㅎ' 키 입력
+   ↓ 브라우저: input 이벤트 발생
+   ↓ React: 등록해둔 함수를 호출  →  ((e) => setText(e.target.value))(이벤트객체)
+   ↓
+setText("ㅎ") → 리렌더 → value={text}가 "ㅎ" → 화면에 "ㅎ"
+```
+
+🐍 Python에서도 늘 하던 일입니다.
+
+```python
+sorted(items, key=lambda x: x.age)   # lambda를 내가 호출한 적 없음 — sorted가 부름
+button.on_click(handle_click)        # 등록만 함 — 클릭이 나면 프레임워크가 부름
+```
+
+**JS 자체 설명**: 함수를 "실행하러" 넘기는 게 아니라 **"나중에 이런 일이 생기면 이걸 불러줘"라고 맡기는** 것입니다. 이런 함수를 **콜백(callback)** 이라고 불러요. JS는 함수가 값(숫자·문자열처럼 변수에 담고 넘길 수 있는 것)이라서 이게 자연스럽습니다.
+
+그래서 이 파일엔 **정의한 곳과 부르는 곳이 다른 함수가 4개** 있습니다.
+
+| 함수 | 정의한 곳 | 실제로 부르는 곳 |
+|---|---|---|
+| `onChange`에 넘긴 화살표 함수 | 여기 | **React** (글자가 바뀔 때) |
+| `onKeyDown`에 넘긴 화살표 함수 | 여기 | **React** (키를 누를 때) |
+| `submit` | 여기 | 여기(`onKeyDown` 안) + **React**(버튼 클릭 시) |
+| `onSend` | **`App.tsx`의 `handleSend`** | 여기 (`submit` 안) |
+
+마지막 줄이 아래 "이벤트는 위로"의 정체입니다 — **정의는 부모가, 호출은 자식이.**
+
+💡 **직접 확인**: `onChange` 줄을 지우고 저장한 뒤 타이핑해 보세요. **글자가 한 자도 안 쳐집니다.** "안 쓰는 코드"가 아니었다는 게 바로 증명돼요.
+
+#### 📖 `e`는 뭔가 — React가 채워 넣는 매개변수
+
+화살표 함수를 풀어 쓰면 정체가 드러납니다.
+
+```tsx
+onChange={(e) => setText(e.target.value)}
+// 위는 아래와 완전히 같은 뜻
+onChange={function (e) { setText(e.target.value); }}
+```
+
+`e`는 그냥 **이 함수의 매개변수**입니다. 값은 **부르는 쪽(React)이 채워서** 호출해요. 그래서 이름은 내 마음대로입니다 — `(event) =>`, `(evt) =>` 다 됩니다. `e`가 관례일 뿐이에요.
+
+🐍 `def on_change(e): ...`의 `e`와 같은 자리입니다. **JS 자체 설명**: 값이 담기는 시점이 "내가 함수를 정의할 때"가 아니라 **"React가 이벤트를 감지해 이 함수를 부를 때"** 라는 게 핵심이에요.
+
+**`e` 안에 든 것** (오늘 쓰는 것만):
+
+| 표현 | 뜻 |
+|---|---|
+| `e.target` | 이벤트가 일어난 DOM 요소 = **이 `<input>` 자신** |
+| `e.target.value` | 지금 입력창에 들어 있는 **글자 전체** |
+| `e.key` | 방금 누른 키 이름 문자열 — `"Enter"`, `"a"`, `"Backspace"` |
+| `e.nativeEvent` | React가 감싸기 전 **브라우저 원본 이벤트** (여기서 `isComposing`을 꺼냄) |
+
+⚠️ **가장 흔한 오해**: `e.target.value`는 "방금 누른 한 글자"가 **아니라** 입력창의 **현재 전체 문자열**입니다. 그래서 `setText(text + e.target.value)`처럼 이어붙이면 글자가 폭발해요. 통째로 덮어쓰는 게 맞습니다.
+
+💡 **타입은 TS가 알아서 붙여줍니다.** `onChange`의 `e`는 `React.ChangeEvent<HTMLInputElement>`, `onKeyDown`의 `e`는 `React.KeyboardEvent<HTMLInputElement>`로 자동 추론돼요. VS Code에서 `e`에 마우스를 올려보면 보입니다. 그래서 `onChange`의 `e`에 `.key`를 쓰면 **빨간 줄이 뜹니다** — 두 `e`는 이름만 같고 서로 다른 타입이에요.
+
+#### 📖 두 종류의 `on___` — React가 정한 이름 vs 내가 지은 이름
+
+그럼 `onChange`·`onKeyDown`은 어디에 미리 정의돼 있는 걸까요? 여기서 답이 **두 갈래**로 갈립니다.
+
+```tsx
+<input onChange={...} onKeyDown={...} />   // 소문자 태그 → React가 정해둔 이름
+<ChatInput onSend={...} />                 // 대문자 태그 → 내가 지은 이름
+```
+
+| | `onChange` · `onKeyDown` · `onClick` | `onSend` |
+|---|---|---|
+| 누가 이름을 정했나 | **React**(정확히는 브라우저 표준) | **내가** — `interface Props`에 직접 씀 |
+| 붙는 대상 | `<input>`, `<button>` 같은 **HTML 태그** | 내가 만든 컴포넌트 |
+| 누가 부르나 | React (이벤트가 나면) | **나** (`submit` 안에서 직접) |
+| 오타 내면 | 경고만 뜨고 **조용히 안 먹음** | TS가 "그런 props 없다"고 빨간 줄 |
+| 이름 바꿀 수 있나 | ❌ 불가 | ✅ `onBanana`여도 동작 |
+
+⭐ **판별법 한 줄: 태그 첫 글자가 소문자면 React가 정한 목록, 대문자면 내가 정한 이름.** §4-2의 "컴포넌트 이름은 반드시 대문자로" 규칙이 여기서도 갈림길이 됩니다.
+
+**어디에 정의돼 있나**: `@types/react`의 `interface DOMAttributes<T>`에 **170개 넘는** `on___`이 미리 선언돼 있습니다. `<input>`은 이걸 물려받은 `InputHTMLAttributes<HTMLInputElement>`를 props 타입으로 써요.
+
+```ts
+onChange?: ChangeEventHandler<T> | undefined;
+onKeyDown?: KeyboardEventHandler<T> | undefined;
+onClick?: MouseEventHandler<T> | undefined;
+```
+
+즉 **내가 `interface Props`를 쓴 것과 정확히 같은 일**을 React 팀이 미리 해둔 것뿐입니다. 특별한 문법이 아니에요. 🐍 타입 스텁(`.pyi`)에 시그니처가 적혀 있는 자리와 같습니다.
+
+**이름 규칙 — 원조는 브라우저**: React가 이벤트를 발명한 게 아닙니다. 원래 브라우저 표준에 있던 이름을 camelCase props로 감쌌을 뿐이에요.
+
+```
+브라우저 표준     →  React props
+keydown          →  onKeyDown
+click            →  onClick
+focus            →  onFocus
+compositionstart →  onCompositionStart
+```
+
+규칙은 **`on` + 이벤트 이름 PascalCase**. 처음 보는 이벤트도 이름을 추측할 수 있습니다.
+
+⚠️ **`onChange`만 예외입니다.** 브라우저의 `change`는 입력창에서 포커스가 빠질 때 한 번 발생하는데, React의 `onChange`는 `input` 이벤트에 붙어 **글자 하나마다** 발동합니다. 제어 컴포넌트(바로 다음 절)가 성립하려면 그래야 해서 React가 일부러 다르게 만든 지점이에요.
+
+⚠️ **대소문자가 틀리면 조용히 안 먹습니다.** `onchange`, `onKeydown`처럼 쓰면 React가 콘솔에 `Invalid event handler property` **경고만** 남깁니다. 에러가 아니라 경고라서 "왜 클릭이 안 되지?" 하며 한참 헤매게 돼요.
+
+> ⌨️ **미니 실습 — 목록 통째로 보기**: VS Code에서 `<input ` 안에 `on`까지 치고 `Ctrl+Space`(자동완성)를 눌러 보세요. 170개가 주르륵 뜹니다. `on` 위에서 `F12`(정의로 이동)를 누르면 위의 `DOMAttributes`까지 갑니다. **외울 필요 없고 이렇게 찾는 법만** 알면 됩니다.
+
+#### ⭐ `value`와 `onChange`는 반드시 한 쌍 (제어 컴포넌트)
+
+`<input>`은 원래 **브라우저가 스스로 글자를 기억**하는 요소입니다. 그런데 `value={text}`를 주는 순간, 화면에 뜰 글자는 **오직 `text` state**가 정하게 됩니다. 이제 키를 눌러도 브라우저 마음대로 못 바꿔요.
+
+그래서 "키를 눌렀다 → state를 바꿔라"는 통로(`onChange`)를 직접 뚫어줘야 합니다. 고리는 이렇게 돕니다.
+
+```
+키 입력 → onChange 발동 → setText("한") → 리렌더 → value="한" → 화면에 "한"
+```
+
+- **`onChange`를 빼면** 이 고리가 끊겨 **글자가 아예 안 쳐집니다.** 콘솔엔 `You provided a 'value' prop to a form field without an 'onChange' handler` 경고가 뜹니다. "입력이 안 돼요"의 90%가 이겁니다.
+- **`value`를 빼면** 타이핑은 되는데 `setText("")`가 **화면에 반영되지 않습니다.** 전송해도 글자가 그대로 남아요. state는 비었는데 브라우저가 자기 값을 계속 붙들고 있어서죠.
+
+💡 왜 이 고생을 하냐면, **값이 항상 state 한 곳에만 있어야** 전송 직전에 다듬고, 버튼을 끄고, 조합 중 Enter를 막는 게 가능해지기 때문입니다. 🐍 Streamlit이 `st.text_input`으로 숨겨둔 그 관리를 React는 내 손에 쥐여줍니다.
+
+#### ⭐ 데이터는 아래로, 이벤트는 위로 — `onSend`
+
+`ChatInput`은 **메시지 목록을 모릅니다.** `messages`도 `setMessages`도 없어요. 그럼 어떻게 대화에 메시지를 추가할까요? **못 합니다.** 대신 "이 텍스트로 뭔가 해주세요"라고 **위에 알리기만** 해요.
+
+```
+App          messages 상태 소유 · handleSend 정의
+ │  props ↓ (함수를 내려보냄)          ↑ 자식이 그 함수를 호출
+ └─ ChatInput   text 상태만 소유 · onSend("안녕") 만 부름
+```
+
+§4-3에서 "데이터는 위에서 아래로만 흐른다"고 했죠. 그럼 아래에서 위로 뭔가 전하고 싶을 땐? **함수를 props로 내려보내면 됩니다.** 부모가 만든 함수를 자식이 호출하니, 실제 실행(=상태 변경)은 부모 쪽에서 일어나요. 흐름은 여전히 한 방향입니다.
+
+🐍 콜백을 인자로 넘기는 그 패턴 그대로입니다 — `def chat_input(on_send: Callable[[str], None])`. 다른 점은 **"누가 상태를 갖느냐"가 곧 설계**라는 것이고, 이 결정을 **상태 끌어올리기(lifting state up)** 라고 부릅니다.
+
+💡 관례: 자식이 부르는 콜백 props 이름은 **`on-`으로 시작**(`onSend`, `onDelete`), 부모 쪽 실제 함수는 **`handle-`로 시작**(`handleSend`)합니다. §4-6에서 `onSend={handleSend}`로 만나요.
+
+#### 🐍 그래서 `text`는 여기, `messages`는 `App`에
+
+- `text`(입력 중인 글자)는 **`ChatInput` 말고 아무도 안 봅니다** → 여기서 갖습니다. 위로 올리면 글자 하나 칠 때마다 `App` 전체가 다시 렌더돼요.
+- `messages`는 **`MessageList`도 보고 `App`도 고칩니다** → 둘의 공통 조상인 `App`이 갖습니다.
+
+💡 판단 기준 한 줄: **"이 값을 보는 컴포넌트가 나 하나면 내가 갖고, 둘 이상이면 가장 가까운 공통 부모가 갖는다."** 🐍 Streamlit에선 전부 `st.session_state` 한 통에 넣었지만, React는 **필요한 곳까지만** 상태를 올립니다.
+
+#### ⚠️⚠️ 한글 IME + Enter 버그 (오늘의 하이라이트)
+
+한글은 자음·모음을 **조합**해 한 글자를 만듭니다("ㅎ"+"ㅏ"+"ㄴ" → "한"). 이 조합을 담당하는 게 OS의 **IME(Input Method Editor)** 이고, 조합이 끝나지 않은 글자는 입력창에 **"미확정" 상태로 임시로** 떠 있어요. 문제는 이 미확정 글자를 **확정하는 키가 Enter**라는 점입니다.
+
+그래서 "안녕"을 치고 Enter를 누르면 그 Enter 한 번이 **두 가지 일로 해석**됩니다.
+
+```
+1) IME: "녕" 조합을 확정해라
+2) 내 onKeyDown: 전송해라
+```
+
+증상은 브라우저·OS·IME 조합에 따라 조금씩 다릅니다 — **같은 메시지가 두 번 전송**되거나, **전송 후 마지막 글자가 입력창에 남거나**, **마지막 글자가 빠진 채 전송**됩니다. 영어만 쓰면 조합 자체가 없어 절대 안 겪기 때문에, 해외 예제 코드에는 이 처리가 거의 없습니다. **한국어 앱에선 필수**예요.
+
+`e.nativeEvent.isComposing`이 **"지금 조합 중인가"** 를 알려줍니다. 조합 중이면(`true`) 그 Enter는 IME 몫이니 내 전송은 건너뜁니다.
+
+⌨️ **직접 겪어보기** — `&& !e.nativeEvent.isComposing`을 잠깐 지우고 저장한 뒤(§4-6 조립 후에 해도 됩니다), 입력창에 "안녕"을 치고 **조합을 확정하지 않은 채** 바로 Enter를 눌러 보세요. 그다음 되돌립니다. 이 버그는 **한 번 눈으로 봐야** 평생 안 잊습니다.
+
+💡 왜 `e`가 아니라 `e.nativeEvent`에서 꺼내나: React는 브라우저 이벤트를 자기 객체(SyntheticEvent)로 한 겹 감싸는데, 그 객체엔 `isComposing`이 노출돼 있지 않습니다. 그래서 `nativeEvent`로 원본을 열어 꺼내요.
+💡 예전 코드에서 `e.keyCode === 229`를 검사하는 걸 볼 수 있는데, 같은 문제를 옛날 방식으로 푼 것입니다. 지금은 `isComposing`을 씁니다. (`onKeyPress`도 폐기됐으니 `onKeyDown`을 쓰세요.)
+
+#### ⚠️ 이 파일에서 흔한 실수 5가지
+
+1. **`onClick={submit()}`처럼 괄호를 붙임** — 괄호는 "지금 실행"이라는 뜻입니다. **렌더 중에 즉시 실행**되고 `onClick`엔 그 반환값(`undefined`)이 들어가요. 버튼을 눌러도 아무 일이 안 일어나고, 안에 `setText`가 있으니 `Cannot update a component while rendering` 경고나 무한 렌더까지 갈 수 있습니다(§6 에러 표). **핸들러엔 함수 이름만, 괄호 없이.** 인자가 필요하면 `onClick={() => submit(x)}`처럼 **한 겹 감싸서** 넘깁니다.
+2. **`onChange`를 빼먹음** — 글자가 안 쳐집니다. 위 "한 쌍" 절 참고.
+3. **`setText(e.target)`** — `.value`를 빼먹으면 문자열이 아니라 DOM 요소가 들어갑니다. 다행히 TS가 빨간 줄로 잡아줘요.
+4. **`setText("")` 다음 줄에서 `text`가 비었을 거라 기대** — 안 비어 있습니다. 이번 렌더의 `text`는 **고정된 스냅샷**이라(§2-3) 다음 렌더가 되어야 바뀝니다. 그래서 `onSend(trimmed)`와 `setText("")`의 순서를 바꿔도 결과가 같아 더 헷갈려요.
+5. **`text.trim()`이 `text`를 바꿀 거라 기대** — 새 문자열을 돌려줄 뿐입니다. 그래서 `trimmed`에 따로 담아 썼어요. 🐍 문자열이 불변인 건 Python도 같습니다.
+
+> ⌨️ **미니 실습 — 빈 입력이면 버튼 비활성화** (§3-3 "그냥 계산" 회수)
+> ```tsx
+> <button
+>   className="border rounded px-4 py-2 disabled:opacity-40"
+>   onClick={submit}
+>   disabled={!text.trim()}
+> >
+>   전송
+> </button>
+> ```
+> 💡 `disabled`는 불리언 props입니다. "버튼을 꺼야 하나"는 `text`에서 **계산 가능한 파생 값**이라 `useState`도 `useEffect`도 필요 없어요. 이런 걸 별도 state로 만드는 게 §3-3이 말한 대표적 낭비입니다.
+> 💡 `disabled:opacity-40`은 Tailwind의 **상태 접두사** — "disabled일 때만 흐리게". `hover:`, `focus:`도 같은 방식입니다.
 
 ### 4-5. 커스텀 훅 — `useAutoScroll`
 
-**① 왜 있나**: 메시지가 쌓이면 자동으로 맨 아래로 스크롤되어야 합니다. 이 상태 관련 로직을 **커스텀 훅**으로 뽑아 재사용해요.
-**② 쉬운 설명**: 커스텀 훅은 **`use`로 시작하는 함수**입니다. 안에서 `useState`·`useEffect`·`useRef`를 조합해요.
+**① 왜 있나**: 메시지가 쌓여 §4-3의 스크롤 상자(`h-96 overflow-y-auto`)를 넘치면, 새 메시지는 **아래에 가려져 안 보입니다.** 사람이 매번 스크롤을 내려야 하죠. "새 메시지가 오면 자동으로 맨 아래로"를 자동화합니다.
 
-⌨️ 실습 — `src/hooks/useAutoScroll.ts`
+그런데 이건 §3-3 기준으로 어디에 속할까요? 화면에서 **계산 가능한 값도 아니고**, 특정 버튼 클릭 때문도 아닙니다. 렌더가 끝나 **DOM이 실제로 생긴 뒤에** 브라우저 스크롤 API를 불러야 하는 일 — 즉 **바깥 세계(DOM)와의 동기화**라 `useEffect`가 정확히 맞는 자리입니다.
+
+**② 쉬운 설명**: 커스텀 훅은 **이름이 `use`로 시작하고, 안에서 다른 훅을 부르는 그냥 함수**입니다. 새 문법이 아니에요. 컴포넌트에 있던 훅 몇 줄을 잘라내 함수로 옮기면 그게 커스텀 훅입니다.
+
+**③ 🐍 Python 다리**: 반복되는 셋업/정리를 데코레이터나 컨텍스트 매니저로 묶어내는 것과 **목적**이 같습니다 — 로직 재사용.
+**JS 자체 설명**: 단, 커스텀 훅이 공유하는 건 **로직이지 상태가 아닙니다.** 두 컴포넌트가 같은 훅을 불러도 각자 **완전히 별개의 `ref`·`state`** 를 가져요. 전역 싱글턴이 아니라 "부를 때마다 처음부터 실행되는 함수"라서 그렇습니다.
+
+**④ 📖 최소 예제** — 아래 실습이 그대로 최소 예제입니다.
+
+⌨️ 실습 — `src/hooks/useAutoScroll.ts` (`src/hooks/` 폴더 새로 만들기)
 
 ```ts
 import { useEffect, useRef } from "react";
 
-// dep가 바뀔 때마다 ref가 가리키는 요소를 맨 아래로 스크롤
+// dep가 바뀔 때마다, ref가 가리키는 요소가 보이도록 스크롤한다
 export function useAutoScroll(dep: unknown) {
+  // <HTMLDivElement> = "이 상자엔 div 하나가 들어온다"는 타입 (제네릭, Day 3)
+  // 초깃값 null = 아직 화면에 안 붙어서 가리킬 게 없음
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // ?. = current가 null이면 조용히 넘어감 (옵셔널 체이닝, Day 3)
     ref.current?.scrollIntoView({ behavior: "smooth" });
-  }, [dep]);
+  }, [dep]);   // dep가 "이전과 다른 값"이 되면 다시 실행
 
-  return ref;   // 이 ref를 "맨 아래 표시용 빈 div"에 붙임
+  return ref;   // 쓰는 쪽이 이 ref를 원하는 요소에 붙인다
 }
 ```
 
-💡 여기서 `useRef`(DOM 가리키기) + `useEffect`(렌더 후 스크롤) + `?.`(Day 3 옵셔널 체이닝)이 전부 합쳐집니다.
+💡 확장자가 `.tsx`가 아니라 **`.ts`** 인 이유: 이 파일엔 JSX(`<div>` 같은 태그)가 한 줄도 없기 때문입니다. JSX를 한 글자라도 쓰면 `.tsx`여야 해요.
+
+#### 📖 한 줄씩 뜯어보기
+
+| 코드 | 뜻 | 🐍 Python 다리 |
+|------|-----|----------------|
+| `export function` (default 아님) | **이름 붙은 export**. 받는 쪽은 `import { useAutoScroll }`처럼 **중괄호**로 (§4-3의 default와 대조) | `from x import y` |
+| `dep: unknown` | "뭐가 올지 모르지만 안에서 아무 연산도 안 할 값". `any`와 달리 함부로 쓰면 **TS가 막아줌** (Day 3) | 느슨한 `object` 힌트 |
+| `useRef<HTMLDivElement>(null)` | `{ current: ... }` 라는 **상자**를 하나 만든다. 초깃값은 `null` | 화면과 무관한 인스턴스 변수 |
+| `ref.current` | 상자 속 실제 값. 여기에 **진짜 DOM 요소**가 들어온다 | — |
+| `?.` | 앞이 `null`/`undefined`면 거기서 멈추고 `undefined` | — |
+| `scrollIntoView({behavior:"smooth"})` | **브라우저 기본 API**. 이 요소가 보이도록 스크롤. React 기능이 아님 | 표준 라이브러리 호출 |
+| `[dep]` | 의존성 배열(§3-1). `dep`이 이전 렌더와 다르면 effect 재실행 | — |
+| `return ref` | 훅이 값을 돌려줌. `useState`가 `[값, setter]`를 주는 것과 같은 방식 | 함수 반환값 |
+
+#### ⭐ ref가 DOM에 연결되는 순서 (여기가 핵심)
+
+```
+1) 렌더    useAutoScroll() 실행 → ref = { current: null }   ← DOM이 아직 없음
+2) 커밋    React가 실제 DOM을 만들고, <div ref={ref} /> 를 보고 ref.current = 그 div
+3) 이펙트  useEffect 안이 실행됨 → ref.current는 진짜 div → scrollIntoView 작동 ✅
+```
+
+이 순서를 보면 **왜 렌더 중에 스크롤하면 안 되는지**가 바로 보입니다. 렌더 시점엔 DOM이 없어서 `ref.current`가 `null`이에요. `?.` 덕분에 에러 없이 조용히 넘어가지만 **아무 일도 안 일어납니다.** `useEffect`는 "DOM이 다 만들어진 뒤"를 보장해주는 자리예요.
+
+⚠️ 그래서 `useRef`는 **바꿔도 재렌더를 일으키지 않습니다**(§3-4). `ref.current = ...`로 화면을 바꾸려 하면 화면은 그대로예요. 기준은 하나입니다 — **화면에 보여야 하는 값은 `useState`, 화면과 무관한 참조는 `useRef`.**
+
+#### ⭐ 왜 굳이 훅으로 뽑았나
+
+`App`에 그냥 `useRef` + `useEffect` 네 줄을 써도 동작합니다. 그런데 그러면 `App`이 "대화를 관리하는 컴포넌트"에서 "대화도 관리하고 스크롤 API도 다루는 컴포넌트"가 돼요. 훅으로 뽑으면 `App`은 `useAutoScroll(messages)` 한 줄만 읽으면 됩니다.
+
+💡 규칙 하나만 기억하세요: **컴포넌트는 "화면"을 재사용하고, 훅은 "로직"을 재사용합니다.** 그리고 `useState`/`useEffect`가 들어간 로직은 **일반 함수로 못 뽑습니다** — 훅은 컴포넌트나 다른 훅 안에서만 부를 수 있거든요. 그 제약 때문에 "커스텀 훅"이라는 형식이 따로 있는 겁니다.
+
+**⑤ ⚠️ 함정**
+
+#### ⚠️ 훅의 규칙 2가지 (Rules of Hooks)
+
+1. **컴포넌트(또는 다른 훅)의 최상단에서만 호출** — `if`·`for`·중첩 함수 안에서 부르면 안 됩니다. React는 훅을 이름이 아니라 **호출 순서**로 구별하기 때문에, 순서가 렌더마다 달라지면 상태가 엉뚱하게 뒤섞여요.
+   ```tsx
+   // ❌ if (messages.length > 0) { const ref = useAutoScroll(messages); }
+   // ✅ const ref = useAutoScroll(messages);   // 항상 부르고, 분기는 훅 안에서
+   ```
+2. **컴포넌트나 커스텀 훅 안에서만 호출** — 이벤트 핸들러나 평범한 유틸 함수 안에선 못 씁니다.
+
+⚠️ 이름을 **반드시 `use`로 시작**해야 하는 이유도 여기 있습니다. 규칙 검사기(ESLint)가 **이름만 보고** 훅인지 판단하거든요. `autoScroll`이라고 지으면 위 규칙을 어겨도 아무도 안 알려줍니다.
+
+#### ⚠️ `[dep]`에 배열을 넣는데 왜 잘 도나 (§2-4 회수)
+
+의존성 배열의 비교는 `===`, 즉 **참조 비교**입니다. 배열은 내용이 같아도 다른 상자면 다른 값이에요.
+
+```ts
+[1, 2] === [1, 2]   // false — 서로 다른 상자
+```
+
+그래서 `useAutoScroll(messages)`는 `messages`가 **새 배열로 통째로 교체될 때만** 다시 돕니다. §2-4에서 `push` 대신 `[...prev, msg]`로 새 배열을 만들어 교체했죠? 그 습관 덕분에 이 훅이 정확히 원하는 순간에 작동합니다. 만약 `push`로 원본을 고쳤다면 참조가 그대로라 **스크롤이 영영 안 내려갑니다.** 불변 업데이트가 화면 갱신뿐 아니라 **effect 발동까지 좌우**하는 순간이에요.
+
+#### ⚠️ ref를 **어디에** 붙이느냐가 전부입니다
+
+`scrollIntoView`는 "이 요소가 보이도록 **스크롤 가능한 조상들**을 움직여라"는 명령입니다. 그래서 표시용 빈 div는 반드시 **스크롤 상자 안**(§4-3의 `overflow-y-auto` div의 자식)에 있어야 해요. 상자 **바깥**에 두면 그 상자는 조상이 아니라서 꿈쩍도 안 하고, 대신 **페이지 전체**가 스크롤됩니다 — 메시지 목록은 그대로 멈춰 있고요.
+
+```
+✅ <div class="h-96 overflow-y-auto">      ❌ <div class="h-96 overflow-y-auto">
+     ...말풍선들...                              ...말풍선들...
+     <div ref={bottomRef} />  ← 상자 안!      </div>
+   </div>                                     <div ref={bottomRef} />  ← 상자 밖
+```
+
+그래서 ref를 `MessageList` **안까지** 내려보냅니다.
+
+⌨️ 실습 — `src/components/MessageList.tsx` 수정 (2줄 추가 + 1줄 추가)
+
+```tsx
+import type { RefObject } from "react";   // ← 추가: ref의 "타입"만 가져옴
+import type { Message } from "../types";
+import MessageItem from "./MessageItem";
+
+interface Props {
+  messages: Message[];
+  bottomRef: RefObject<HTMLDivElement | null>;   // ← 추가: 부모가 만든 ref를 받는다
+}
+
+function MessageList({ messages, bottomRef }: Props) {
+  return (
+    <div className="flex flex-col gap-2 p-4 h-96 overflow-y-auto border rounded">
+      {messages.map((m) => (
+        <MessageItem key={m.id} message={m} />
+      ))}
+      {/* 스크롤 목표 지점 — 반드시 스크롤 상자 "안"에 */}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
+
+export default MessageList;
+```
+
+`App`에서는 `<MessageList messages={messages} bottomRef={bottomRef} />`로 넘깁니다. 바로 다음 §4-6 코드에 반영돼 있어요.
+
+💡 §4-3 미니 실습의 "아직 메시지가 없습니다" 안내 문구를 넣어뒀다면 **그 줄은 지우지 말고 그대로 두세요.** 위 코드에선 지면상 생략했을 뿐입니다.
+
+💡 왜 props 이름이 `ref`가 아니라 `bottomRef`인가: `ref`는 `key`처럼 React가 **특별하게 다루는 이름**이라 내 컴포넌트에 그대로 쓰면 의도와 다르게 해석되기 쉽습니다. **평범한 이름의 일반 props**로 넘기는 게 안전하고 뜻도 분명해요.
+💡 `RefObject<HTMLDivElement | null>`이 길어 보이지만 뜻은 단순합니다 — "`current` 안에 div가 들어 있거나 아직 `null`인 상자". `useAutoScroll`이 돌려준 것과 **똑같은 타입**을 적어준 것뿐이에요.
+
+> ⌨️ **미니 실습 — 훅이 진짜 일하는지 눈으로 확인** (§4-6 조립 후에 하세요)
+> 1. `}, [dep]);`를 `}, []);`로 바꾸고 메시지를 10개쯤 보내 보세요. **처음 한 번만** 실행되니 스크롤이 안 따라옵니다. (§3-1의 의존성 배열 3형태를 실제로 체감하는 지점)
+> 2. `behavior: "smooth"`를 지우면 부드럽게 미끄러지는 대신 **순간이동**합니다. 메시지가 빠르게 쌓일 땐 이쪽이 나을 때도 있어요 — 직접 보고 고르세요.
+> 3. 둘 다 원래대로 되돌립니다.
 
 ### 4-6. 전체 조립 — `App.tsx`
 
@@ -987,8 +1331,8 @@ function App() {
   return (
     <div className="max-w-xl mx-auto p-8">
       <h1 className="text-xl font-bold mb-4">내 채팅 앱</h1>
-      <MessageList messages={messages} />
-      <div ref={bottomRef} />       {/* 스크롤 목표 지점 */}
+      {/* 스크롤 목표 지점(빈 div)은 MessageList 안, 스크롤 상자 내부에 있습니다 (§4-5) */}
+      <MessageList messages={messages} bottomRef={bottomRef} />
       <ChatInput onSend={handleSend} />
     </div>
   );

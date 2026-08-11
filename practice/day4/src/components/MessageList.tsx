@@ -1,8 +1,10 @@
+import type { RefObject } from "react"; // ← 추가: ref의 "타입"만 가져옴
 import type { Message } from "../types";
-import MessageItem from "./MessageItem"; // 자식 컴포넌트를 데려온다 (default export라 { } 없음)
+import MessageItem from "./MessageItem";
 
 interface Props {
-  messages: Message[]; // 배열
+  messages: Message[];
+  bottomRef: RefObject<HTMLDivElement | null>; // ← 추가: 부모가 만든 ref를 받는다
 }
 
 function MessageList({ messages }: Props) {
@@ -11,9 +13,11 @@ function MessageList({ messages }: Props) {
     <div className="flex flex-col gap-2 p-4 h-96 overflow-y-auto border rounded">
       {/* { } 안은 JS 영역 → 배열을 map으로 "JSX 배열"로 바꾸면 React가 알아서 나열해 그린다 */}
 
-        {messages.length === 0 && (
-    <p className="text-gray-400">아직 메시지가 없습니다. 아래에 입력해 보세요.</p>
-  )}
+      {messages.length === 0 && (
+        <p className="text-gray-400">
+          아직 메시지가 없습니다. 아래에 입력해 보세요.
+        </p>
+      )}
 
       {messages.map((m) => (
         // key = React가 항목을 구별하는 이름표. 인덱스 말고 고유 id를 쓴다
