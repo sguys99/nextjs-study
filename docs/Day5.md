@@ -81,22 +81,39 @@ nextjs-study/
 
 ### 0-2. 시작 준비 — Next.js 앱 생성
 
-⌨️ 실습 — 저장소 루트에서
+⌨️ 실습 — 저장소 루트(`nextjs-study/`)에서
 
 ```bash
-pnpm create next-app@latest chat-app
+pnpm create next-app@latest chat-app \
+  --ts --tailwind --eslint --app --src-dir --import-alias "@/*"
 ```
 
-프롬프트에서 **TypeScript: Yes, ESLint: Yes, Tailwind CSS: Yes, `src/` directory: Yes, App Router: Yes, Turbopack: Yes, import alias: 기본값(@/\*)**을 선택하세요.
+⚠️ **플래그를 반드시 붙이세요.** Next.js 16의 `create-next-app`은 TypeScript·Tailwind·App Router·Turbopack이 **이미 기본값이라 묻지 않습니다**(`--turbopack` 플래그도 없어졌어요). 문제는 **`src/` 디렉터리인데, 이건 묻지도 않고 기본이 off**입니다. `--src-dir` 없이 실행하면 `chat-app/app/`이 생기고 `@/`가 `src/`가 아니라 프로젝트 루트를 가리켜서, **오늘 이후 모든 실습의 경로가 어긋납니다.** 남는 프롬프트(React Compiler 등)는 기본값(No)으로 두면 됩니다.
+
+<details><summary>⚠️ 이미 <code>--src-dir</code> 없이 만들었다면 (되돌리기)</summary>
+
+`chat-app/app/`이 생겼고 `chat-app/src/`가 없다면, 지우고 다시 만들 필요 없이 두 가지만 고치면 됩니다.
+
+```bash
+cd chat-app
+mkdir -p src
+mv app src/app
+rm -rf .next          # 이전 구조로 만들어진 빌드 캐시 비우기
+```
+
+그리고 `chat-app/tsconfig.json`의 `paths`를 `"@/*": ["./*"]` → **`"@/*": ["./src/*"]`**로 고칩니다. (`node_modules`는 그대로 두면 되니 재설치는 필요 없어요.)
+</details>
 
 ⌨️ 실습 — 개발 서버 실행
 
 ```bash
-cd chat-app
+cd chat-app     # ⚠️ 반드시 먼저! 저장소 루트에는 package.json이 없습니다
 pnpm dev
 ```
 
 → `http://localhost:3000`을 열어 기본 화면이 뜨면 준비 끝. (Day 4의 Vite는 5173, Next.js는 3000 포트예요.)
+
+⚠️ 저장소 루트에서 `pnpm dev`를 치면 `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND`가 납니다. "이 폴더엔 `package.json`이 없다"는 뜻이에요. 🐍 가상환경을 활성화하지 않고 `python manage.py`를 친 것과 비슷한 실수입니다 — **오늘부터 작업 디렉터리는 `chat-app/`**입니다.
 
 ---
 
@@ -468,6 +485,7 @@ export default function HomePage() {
 
 | 메시지 | 뜻 | 해결 |
 |--------|-----|------|
+| `ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND` | 그 폴더에 `package.json`이 없음 | `cd chat-app` 후 다시 실행 |
 | `... needs useState. It only works in a Client Component` | 서버 컴포넌트에서 훅/이벤트 사용 | 말단에 `"use client"` |
 | `Hydration failed ...` | 서버가 그린 HTML과 브라우저 결과 불일치 | 렌더 중 `Math.random`/`Date.now`·브라우저 전용 코드 확인 |
 | `Module not found: Can't resolve '@/...'` | 경로 별칭/파일 위치 오류 | 파일 위치와 `@/` 별칭 확인 |
