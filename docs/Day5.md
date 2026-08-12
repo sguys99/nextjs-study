@@ -275,12 +275,23 @@ export default function Counter() {
 ⌨️ 실습 — `src/app/api/chat/route.ts` 새 파일
 
 ```ts
-// Day 6에서 진짜 LLM 스트리밍으로 교체될 stub
+// src/app/api/chat/route.ts
+// 파일 위치가 곧 주소: app/api/chat/route.ts → POST /api/chat
 export async function POST(request: Request) {
-  const body = await request.json();       // { messages: [...] }
+  const body = await request.json();       // 기대하는 형태: { messages: [{ role, text }, ...] }
+
+  // 마지막 메시지의 text만 꺼냅니다. 이 한 줄에 JS 문법 3개가 들어 있어요:
+  //   .at(-1)  배열의 마지막 원소 (🐍 Python의 messages[-1]. JS는 대괄호에 음수를 못 넣어서 .at()을 씀)
+  //   ?.       옵셔널 체이닝 — 앞이 undefined/null이면 에러 대신 undefined를 반환 
+  //   ?? ""    널 병합 — 왼쪽이 undefined/null일 때만 ""를 사용 (||와 달리 빈 문자열·0은 그대로 통과)
+  // → messages가 없든, 빈 배열이든, text 키가 없든 터지지 않고 ""가 됩니다.
   const lastText = body.messages?.at(-1)?.text ?? "";
 
+  // Response.json(obj) = 객체를 JSON 문자열로 바꾸고 Content-Type: application/json 헤더까지 붙여주는 헬퍼.
+  // Route Handler에서는 이 Response 객체를 return하는 것이 곧 "응답 보내기"입니다.
+  // 🐍 FastAPI는 return dict만 해도 알아서 JSON으로 바꿔줬지만, 여기선 Response로 감싸 줘야 합니다.
   return Response.json({
+    // 백틱(`)으로 감싼 문자열 = 템플릿 리터럴. ${} 안에 값을 끼워 넣습니다 (🐍 f-string과 같은 역할)
     reply: `(stub) "${lastText}" 잘 받았어요. Day 6에서 진짜 AI가 답합니다.`,
   });
 }
