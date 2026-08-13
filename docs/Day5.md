@@ -167,6 +167,20 @@ export default function RootLayout({
 
 💡 `children`은 "이 껍데기 안에 들어올 내용물"입니다. Day 4의 props와 같은 개념이에요.
 
+⚠️ **실제로 생성된 `src/app/layout.tsx`를 열어보면 위 예제와 다릅니다.** 폰트 설정(`Geist`)과 `metadata`가 더 있고, props 타입이 `LayoutProps<"/">`로 적혀 있어요. 이건 Next.js 16이 **라우트별 타입을 자동 생성**해주는 기능입니다(`{ children: React.ReactNode }`를 직접 쓴 것과 결과가 같음). 놀라지 말고 그대로 두세요.
+
+⌨️ 미니 실습 — `src/app/layout.tsx` 부분 수정 (한글 앱에 맞게 두 곳만)
+
+```tsx
+export const metadata: Metadata = {
+  title: "내 채팅 앱",              // ← 브라우저 탭 제목 (기본값: "Create Next App")
+  description: "Day 5에서 만든 채팅 앱",
+};
+
+// ...
+    <html lang="ko" ...>            // ← "en" → "ko" (스크린리더·번역기가 참고하는 언어 표시)
+```
+
 ### 1-3. 페이지 이동 — `<Link>`
 
 **② 쉬운 설명**: 페이지 간 이동은 `<a>` 대신 **`<Link>`**를 씁니다(전체 새로고침 없이 빠르게 전환).
@@ -297,7 +311,7 @@ export async function POST(request: Request) {
 }
 ```
 
-⌨️ 실습 — 터미널에서 API 직접 호출해 확인
+⌨️ 실습 — 터미널에서 API 직접 호출해 확인 (⚠️ **다른 터미널 탭**에서 `pnpm dev`가 돌고 있어야 합니다)
 
 ```bash
 curl -X POST http://localhost:3000/api/chat \
@@ -331,6 +345,13 @@ ANTHROPIC_API_KEY=여기에_나중에_키
 
 ⚠️⚠️ **가장 위험한 실수**: 비밀 키에 `NEXT_PUBLIC_`을 붙이면 **브라우저 번들에 그대로 노출**됩니다. LLM 키는 **절대** `NEXT_PUBLIC_`을 붙이지 마세요. 🐍 `os.environ`은 서버에만 있었지만 Next.js는 "이 값이 브라우저로 갈 수 있다"는 걸 늘 의식해야 합니다.
 
+### ✅ 세션 3 체크
+- [ ] `app/api/chat/route.ts`에 `POST`를 export해 `/api/chat` 엔드포인트 생성
+- [ ] `curl`로 stub 응답 확인 (`{"reply":"(stub) ..."}`)
+- [ ] `request.json()` / `Response.json()`의 역할 설명 가능
+- [ ] Server Action은 "클라이언트에서 부르지만 서버에서 실행"이라는 개념만 파악
+- [ ] `.env.local` 생성, `NEXT_PUBLIC_`을 비밀 키에 붙이면 안 되는 이유 설명 가능
+
 ---
 
 ## 4. 세션 4 (오후) — 채팅 UI 이관 + shadcn/ui
@@ -358,14 +379,14 @@ Day 4의 `App.tsx` 역할을 하는 **상태 보유 컴포넌트**를 만들고 
 "use client";
 
 import { useState } from "react";
-import type { Message } from "../types";
+import type { Message } from "@/types";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
-import { useAutoScroll } from "../hooks/useAutoScroll";
+import { useAutoScroll } from "@/hooks/useAutoScroll";
 
 export default function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const bottomRef = useAutoScroll(messages);
+  const [messages, setMessages] = useState<Message[]>([]); // 제네릭 타입 인자와 초기값
+  const bottomRef = useAutoScroll(messages); // 메시지가 늘어나면 대화창 아래로 자동 스크롤, bottomRef는 어디가 맨 아래인지 표시
 
   const handleSend = (text: string) => {
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", text };
@@ -382,34 +403,159 @@ export default function ChatPanel() {
 
   return (
     <div>
-      <MessageList messages={messages} />
-      <div ref={bottomRef} />
+      {/* bottomRef를 MessageList에 넘긴다 — 아래 ⚠️ 참고 */}
+      <MessageList messages={messages} bottomRef={bottomRef} />
       <ChatInput onSend={handleSend} />
     </div>
   );
 }
 ```
 
-⚠️ `MessageList`/`MessageItem`/`ChatInput`도 확인하세요. `ChatInput`은 `useState`·`onClick`을 쓰니 **`"use client"`가 필요**합니다(맨 위에 추가). `MessageList`/`MessageItem`은 상태 없이 props만 받아 렌더하므로 서버 컴포넌트로 둬도 되지만 클라이언트인 `ChatPanel`이 렌더하면 자동으로 클라이언트 취급됩니다. **헷갈리면 이 세 개에 `"use client"`를 붙여도 무방**해요(학습 단계에선 안전).
+⚠️ **`bottomRef`는 `MessageList`에 넘겨야 합니다.** Day 4의 `MessageList`는 `bottomRef`를 **필수 prop으로 선언**해 뒀으니(안 넘기면 `Property 'bottomRef' is missing ... ts(2741)` 에러), 아래 두 곳을 확인하세요.
+
+```tsx
+// src/components/MessageList.tsx (부분 수정)
+function MessageList({ messages, bottomRef }: Props) {   // ← 구조 분해에 bottomRef 포함
+  return (
+    <div className="... h-96 overflow-y-auto ...">       // ← 실제로 스크롤되는 상자
+      {messages.map((m) => (
+        <MessageItem key={m.id} message={m} />
+      ))}
+      <div ref={bottomRef} />                            // ← 표식은 이 상자 "안"에
+    </div>
+  );
+}
+```
+
+표식을 `ChatPanel`에 두면(= 스크롤 상자 **밖**) `scrollIntoView`가 대화창 내부 대신 **페이지 전체**를 움직여서 자동 스크롤이 안 됩니다. 💡 `bottomRef?:`처럼 `?`를 붙여 에러만 끄면 빨간 줄은 사라지지만 스크롤은 영원히 안 돼요 — **타입 에러는 "설계가 어긋났다"는 신호**로 읽으세요.
+
+### 4-2-1. ⭐ `"use client"`는 "문패"가 아니라 "국경 검문소"
+
+여기서 가장 헷갈리는 걸 짚고 갑니다. `MessageList`/`MessageItem`/`ChatInput`에는 `"use client"`를 **안 붙여도 됩니다.** 왜냐하면 `"use client"`의 뜻이 이렇기 때문입니다.
+
+> "이 파일은 클라이언트야"가 **아니라** → **"여기서부터 안쪽은 전부 클라이언트 영역"**
+
+파일에 붙이는 라벨이 아니라 **경계선을 긋는 선언**입니다. 그 선을 넘은 곳에서 import한 컴포넌트는 **자동으로** 클라이언트가 됩니다. 검문소는 **입구에 하나만** 두면 되고, 안쪽 건물마다 세울 필요가 없어요. (아래 그림의 `page.tsx` → `ChatPanel` 연결은 **4-2-2에서** 실제로 만듭니다)
+
+```
+[page.tsx]  ← 서버 영역 (지시문 없음 = 기본값)
+    │
+    │ import ChatPanel
+    ▼
+╔═══ "use client" ← 검문소. 이 선 아래는 전부 클라이언트 ═══════════╗
+║  [ChatPanel]                                                  ║
+║      ├── import MessageList  → 자동 클라이언트                  ║
+║      │       └── MessageItem → 자동 클라이언트                  ║
+║      └── import ChatInput    → 자동 클라이언트 (지시문 없어도 OK) ║
+╚═══════════════════════════════════════════════════════════════╝
+```
+
+🐍 **프로세스로 생각하면 쉽습니다.** 서버와 브라우저는 실행되는 기계가 아예 다릅니다. `"use client"`는 "이 지점부터 코드를 브라우저 쪽으로 배송하라"는 지시예요. 브라우저로 보내진 `ChatPanel`이 `ChatInput`을 부르려면 **`ChatInput`도 같이 실려 가야만** 하니 번들러가 알아서 따라 보냅니다. Python에서도 어떤 함수를 워커 프로세스에서 돌리면 그 함수가 호출하는 하위 함수들은 당연히 같은 프로세스에서 돌죠 — 함수마다 "나도 워커에서 돕니다"라고 적지 않습니다.
+
+**그럼 언제 진짜로 필요한가?** → **서버 컴포넌트가 직접 import할 때.** 딱 그때만입니다.
+
+⌨️ 미니 실습 — `src/app/page.tsx`를 잠깐 이렇게 바꿔 에러를 만나 보세요 (확인 후 되돌리기)
+
+```tsx
+import ChatInput from "@/components/ChatInput";   // ⚠️ page.tsx는 서버 컴포넌트!
+
+export default function HomePage() {
+  return <ChatInput onSend={() => {}} />;
+}
+```
+
+→ `You're importing a component that needs useState. It only works in a Client Component, but **none of its parents are marked with "use client"**`
+
+마지막 구절이 규칙을 그대로 말해줍니다 — "**부모들 중에** `"use client"`가 하나도 없다". 부모 중 하나라도 있으면 통과, 없으면 에러. 지금은 부모 `ChatPanel`에 있으니 통과하는 거예요.
+
+**실전 규칙 한 줄:**
+
+> `"use client"`는 서버→클라이언트로 **처음 넘어가는 그 한 파일**에만 붙인다.
+
+우리 앱에서는 `ChatPanel`이 그 한 파일입니다. [2-3의 "최대한 잎사귀에만"](#2-3-멘탈-모델--기본은-서버-상호작용에만-use-client) 원칙과 같은 이야기예요 — 검문소를 `page.tsx`까지 밀어 올리면 페이지 전체가 브라우저로 배송되니, 되도록 **깊고 작은 곳**에 둡니다.
+
+💡 `MessageList`/`MessageItem`/`ChatInput` 셋에 `"use client"`를 **붙여도 무방**합니다(이미 경계 안쪽이라 아무 효과 없는 중복 표시 = 무해). 다만 "저 파일들도 붙여야 돌아간다"고 오해하지는 마세요. 오히려 나중에 그 컴포넌트를 서버 컴포넌트에서 재사용할 때 **붙어 있는 게 도움이 되는** 정도입니다.
+
+⚠️ **반대 방향이 훨씬 위험합니다.** 경계 **안쪽**에는 `process.env.ANTHROPIC_API_KEY` 같은 서버 전용 코드를 절대 두지 마세요. 지시문을 안 붙였다고 안전한 게 아닙니다 — **클라이언트가 import하는 순간 그 파일 전체가 브라우저로 배송**됩니다. 파일 맨 위에 뭐가 적혀 있느냐가 아니라 **누가 import했느냐**가 실제 실행 위치를 결정합니다.
+
+### 4-2-2. 페이지에 연결 — `page.tsx`가 `ChatPanel`을 렌더
+
+⚠️ **이 단계를 빼먹으면 앱을 켜도 채팅이 안 보입니다.** 컴포넌트를 다 만들어도 **어느 페이지에도 올리지 않았으면** 화면에 없어요. 지금 `/`는 아직 1-3에서 만든 "홈 + 소개 페이지로" 화면입니다.
 
 ⌨️ 실습 — `src/app/page.tsx` 덮어쓰기 (페이지는 서버, 채팅만 클라이언트)
 
 ```tsx
+import Link from "next/link";
 import ChatPanel from "@/components/ChatPanel";
 
+// 이 파일은 서버 컴포넌트 (지시문 없음 = 기본값).
+// 상태를 가진 ChatPanel만 클라이언트 → "검문소는 깊고 작은 곳에" 원칙
 export default function HomePage() {
   return (
     <main className="max-w-xl mx-auto p-8">
       <h1 className="text-xl font-bold mb-4">내 채팅 앱</h1>
       <ChatPanel />
+      <Link href="/about" className="text-blue-600 underline text-sm">
+        소개 페이지로 →
+      </Link>
     </main>
   );
 }
 ```
 
-💡 `@/`는 `src/`를 가리키는 별칭(alias)입니다(생성 시 설정됨). 긴 상대경로(`../../`) 대신 `@/components/...`로 깔끔하게 import해요.
+💡 `@/`는 `src/`를 가리키는 별칭(alias)입니다(생성 시 설정됨). 긴 상대경로(`../../`) 대신 `@/components/...`로 깔끔하게 import해요. 🐍 Python의 절대 import(`from myapp.components import ...`)와 상대 import(`from ..components import ...`) 차이와 같은 이야기입니다.
 
-⌨️ 실행 — `pnpm dev` 후 `http://localhost:3000`에서 채팅 동작 확인. **Day 4와 똑같이 작동하되, 이제 Next.js 위에서 돕니다.**
+### 4-2-3. ⌨️ 여기서 한 번 돌려보기 (4-3 들어가기 전 동작 확인)
+
+shadcn/ui로 넘어가기 **전에** 반드시 여기서 앱이 도는 걸 확인하세요. 지금 문제가 있는데 shadcn을 얹으면 "UI 교체 때문인지 이관 때문인지" 원인 구분이 안 됩니다.
+
+```bash
+cd chat-app
+pnpm dev        # 이미 돌고 있으면 그대로 두면 됩니다 (파일 저장 시 자동 반영)
+```
+
+`http://localhost:3000` 에서 **5가지**를 확인합니다.
+
+- [ ] **① 채팅 UI가 보인다** — "내 채팅 앱" 제목 + 테두리 있는 빈 대화 상자 + 입력창/전송 버튼
+- [ ] **② 전송이 된다** — 입력 후 Enter 또는 [전송] → 파란 말풍선(오른쪽) + 회색 봇 답장(왼쪽) 두 개가 즉시 추가
+- [ ] **③ 자동 스크롤** — 메시지를 10개쯤 보내 상자가 꽉 차면, 최신 메시지가 **자동으로** 보이게 내려간다. ⚠️ **페이지 전체가 아니라 대화 상자 안쪽**이 움직여야 합니다
+- [ ] **④ 한글이 두 번 안 들어간다** — "안녕"을 치고 Enter → `안녕`만 전송(`안녕녕`이 아님)
+- [ ] **⑤ 콘솔이 깨끗하다** — 브라우저 개발자 도구(`F12` → Console)에 빨간 에러 0건
+
+⌨️ 실습 — API stub도 아직 살아 있는지 (3-1 재확인, 새 터미널에서)
+
+```bash
+curl -s -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","text":"안녕"}]}'
+```
+
+⌨️ 실습 — 🎯 **서버 컴포넌트가 정말 서버에서 돌았는지 눈으로 확인**
+
+```bash
+curl -s http://localhost:3000/ | grep -o '아직 메시지가 없습니다[^<]*'
+```
+
+`curl`은 JS를 실행하지 않는 순수 HTTP 클라이언트입니다. 그런데도 이 문구가 나오면 → **서버가 이미 완성된 HTML을 만들어 보냈다**는 증거예요. 🐍 FastAPI가 템플릿을 렌더해 HTML을 내려주던 것과 같은 일이 `MessageList` 컴포넌트로 일어난 겁니다. 브라우저는 그 HTML을 먼저 그리고, 그 위에 상호작용을 입힙니다(= 6절의 **하이드레이션**).
+
+**증상별 진단표**
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| "홈 / 소개 페이지로"만 보이고 채팅이 없다 | `page.tsx`가 아직 1-3 버전 | **4-2-2** 적용 |
+| `Property 'bottomRef' is missing ... ts(2741)` | `MessageList`에 ref를 안 넘김 | **4-2**의 ⚠️ 참고 |
+| 화면은 뜨는데 입력·클릭이 먹지 않는다 | `ChatPanel`의 `"use client"` 누락/오타(`"user client"` 등) | 파일 **맨 첫 줄** 확인 — 오타는 그냥 문자열이라 에러도 안 납니다 ⚠️ |
+| 메시지는 쌓이는데 스크롤이 안 따라간다 | 표식이 스크롤 상자 **밖**에 있음 | **4-2**대로 `MessageList` 안으로 |
+| 스크롤 대신 **페이지 전체**가 움직인다 | 위와 같은 원인 | 위와 같음 |
+| "안녕" → "안녕녕" | IME 처리(`isComposing`) 누락 | `ChatInput`의 `onKeyDown` 확인 |
+| `Module not found: Can't resolve '@/components/ChatPanel'` | 파일 위치 또는 `--src-dir` 누락 | 0-2의 되돌리기 참고 |
+
+### ✅ 세션 4 (전반) 체크
+- [ ] Day 4 컴포넌트가 `chat-app/src/`로 이관됨
+- [ ] `ChatPanel`에만 `"use client"` — 자식 3개는 자동 전파라는 걸 설명 가능
+- [ ] `page.tsx`(서버) → `ChatPanel`(클라이언트) 연결
+- [ ] 위 ①~⑤ 동작 확인 통과
+- [ ] `curl`로 SSR HTML과 `/api/chat` stub 확인
 
 ### 4-3. shadcn/ui 도입 (Day 4에서 미룬 것)
 
@@ -465,6 +611,8 @@ export default function ChatInput({ onSend }: Props) {
 ---
 
 ## 5. 디버깅 실습 — "use client" 경계 에러
+
+4-2-1의 미니 실습은 "**남의 컴포넌트**를 서버에서 import"하는 경우였습니다. 이번엔 "**내 파일 안에서 직접** 훅을 쓰는" 경우 — 같은 에러가 뜨지만 고치는 선택지가 다릅니다.
 
 ⌨️ 실습 — `src/app/page.tsx`를 잠깐 아래처럼 바꿔 에러를 만나 보세요 (확인 후 되돌리기)
 
