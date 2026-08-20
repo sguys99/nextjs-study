@@ -561,52 +561,149 @@ curl -s http://localhost:3000/ | grep -o '아직 메시지가 없습니다[^<]*'
 
 **① 무엇**: shadcn/ui는 UI 컴포넌트 모음인데, **잘 만든 컴포넌트 코드를 내 프로젝트에 복사해 넣는** 방식입니다(패키지 의존성이 아니라 내 코드가 됨 → 자유롭게 수정 가능). 🐍 "라이브러리 import"가 아니라 "검증된 코드를 가져와 내 것으로".
 
-⌨️ 실습 — 초기화 + 컴포넌트 추가
+#### 4-3-1. 초기화 — CLI 프롬프트 답안
+
+⌨️ 실습 — `chat-app/`에서 실행
 
 ```bash
+cd chat-app          # ⚠️ 저장소 루트가 아니라 chat-app 안에서
 pnpm dlx shadcn@latest init
+```
+
+프롬프트가 두 번 나옵니다. **둘 다 첫 번째 항목(그냥 엔터)**이 정답입니다.
+
+| 프롬프트 | 선택 | 왜 |
+|---|---|---|
+| `Select a component library` | **Base UI (Recommended)** | 2026년 7월부터 shadcn의 기본 프리미티브가 Radix UI → Base UI로 바뀜. 오늘 쓰는 `Button`/`Input`은 어느 쪽이든 사용법이 동일 |
+| `Which preset would you like to use?` | **Nova - Lucide / Geist** | CLI 자체 기본값(`shadcn init --defaults` = `base-nova`). 폰트가 **Geist** = `create-next-app`이 이미 깔아둔 폰트와 일치 |
+
+🎯 **배경 — preset이 뭔가**: "아이콘 라이브러리 + 폰트 + 기본 색 + 모서리 반경"을 한 번에 정해주는 **테마 세트**입니다. 8개 전부 기능은 같고 외형만 다릅니다(모두 `neutral` 회색 기반). 🐍 `ruff`/`black` 설정 프리셋을 고르는 것과 같은 성격이에요 — 나중에 `chat-app/components.json`과 `src/app/globals.css`에서 손으로 바꿀 수 있으니 여기서 고민할 필요가 없습니다.
+
+| preset | 아이콘 | 폰트 |
+|---|---|---|
+| **Nova** ⭐ | Lucide | **Geist** ← 우리 프로젝트와 일치 |
+| Vega / Luma | Lucide | Inter |
+| Maia | Hugeicons | Figtree |
+| Mira | Hugeicons | Inter |
+| Lyra | Phosphor | JetBrains Mono |
+| Sera / Rhea | (추가 스타일) | — |
+
+**init이 끝나면 자동으로 생기는 것들** (직접 만들지 않습니다):
+
+- `chat-app/components.json` — 설정 파일 (`"style": "base-nova"`, 경로 별칭)
+- `chat-app/src/lib/utils.ts` — `cn()` 헬퍼 (⭐ 4-3-3에서 중요해집니다)
+- `chat-app/src/app/globals.css` — **덮어써짐**. 테마 CSS 변수(`--primary`, `--input`, `--ring` …)가 추가됨
+- 의존성 추가: `@base-ui/react`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+
+💡 `git diff`로 `globals.css`가 어떻게 바뀌었는지 한 번 훑어보세요. `create-next-app` 기본값에 있던 `body { font-family: Arial, ... }`(Geist 폰트를 덮어쓰고 있던 범인)가 이때 정리됩니다.
+
+⌨️ 실습 — 컴포넌트 2개 가져오기 (`chat-app/`에서)
+
+```bash
 pnpm dlx shadcn@latest add button input
 ```
 
-(프롬프트는 기본값 위주로 진행하면 됩니다. `src/components/ui/`에 `button.tsx`, `input.tsx`가 생깁니다.)
+→ `chat-app/src/components/ui/button.tsx`, `chat-app/src/components/ui/input.tsx` 생성. **열어서 읽어보세요.** 이제 이건 라이브러리가 아니라 **내 코드**입니다.
 
-⌨️ 실습 — `ChatInput`을 shadcn 컴포넌트로 살짝 교체 (부분 수정)
+#### 4-3-2. ChatInput을 shadcn 컴포넌트로 교체
+
+⌨️ 실습 — `chat-app/src/components/ChatInput.tsx` **덮어쓰기** (Day 4에서 이관한 파일)
+
+✅ 완성본 — 아래가 **파일 전체**입니다. 첫 줄부터 마지막 줄까지 이게 다예요.
 
 ```tsx
-"use client";
+// chat-app/src/components/ChatInput.tsx
+// "use client" 없음 — 부모 ChatPanel이 이미 검문소라 자동 전파됩니다 (4-2-1 참고)
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button"; // shadcn이 생성해 준 "내 코드"
+import { Input } from "@/components/ui/input";   // = src/components/ui/input.tsx
 
 interface Props {
-  onSend: (text: string) => void;
+  onSend: (text: string) => void; // 부모가 내려준 "다 되면 이걸 불러" 함수 (콜백)
 }
 
 export default function ChatInput({ onSend }: Props) {
   const [text, setText] = useState("");
+
   const submit = () => {
-    const t = text.trim();
-    if (!t) return;
-    onSend(t);
-    setText("");
+    const trimmed = text.trim();
+    if (!trimmed) return; // 빈 입력 무시
+    onSend(trimmed);      // 부모에게 넘김 — 여기서 내 일은 끝
+    setText("");          // 전송 후 입력창 비우기
   };
+
   return (
     <div className="flex gap-2 mt-2">
       <Input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        className="flex-1"                        // 배치만 내가 지정, 외형은 Input에 맡김
+        value={text}                              // ① 보여줄 값은 state에서 온다
+        onChange={(e) => setText(e.target.value)} // ② 글자가 바뀌면 state를 갱신
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+          // ⚠️ 한글 조합 중(isComposing)의 Enter는 "글자 확정"용이라 무시해야 한다
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            submit();
+          }
         }}
         placeholder="메시지를 입력하세요"
       />
+      {/* onClick={submit} — 괄호 없이! 괄호를 붙이면 렌더 중에 즉시 실행된다 */}
       <Button onClick={submit}>전송</Button>
     </div>
   );
 }
 ```
 
-💡 한글 IME 처리(`isComposing`)는 그대로 유지했습니다. shadcn의 `Input`도 결국 일반 input이라 그 처리가 여전히 필요해요.
+⚠️ **JSX 주석에는 두 가지 위치가 있습니다** (위 코드에 둘 다 등장):
+
+- **여는 태그 "안"** (`<Input ... />` 내부) → `// 주석` 그대로 씁니다. 태그 안쪽은 평범한 JS 문법 영역이라 됩니다.
+- **태그 "사이"** (children 위치, `<div>`와 `<Button>` 사이) → **`{/* 주석 */}`** 형태만 유효합니다. 여기서 `//`를 쓰면 주석이 아니라 **화면에 `//`가 그대로 출력**됩니다.
+
+#### 4-3-3. Day 4 버전과 달라진 곳 — 딱 4군데
+
+📖 설명용 — 무엇이 바뀌었는지 대조
+
+| # | Day 4 버전 | shadcn 버전 | 비고 |
+|---|---|---|---|
+| ① | (없음) | `import { Button } ...` / `import { Input } ...` 2줄 | 추가 |
+| ② | `<input className="flex-1 border rounded px-3 py-2"` | `<Input className="flex-1"` | 대문자 `I` + 외형 클래스 삭제 |
+| ③ | `<button className="border rounded px-4 py-2" onClick={submit}>` | `<Button onClick={submit}>` | 대문자 `B` + className 통째로 삭제 |
+| ④ | `</button>` | `</Button>` | 닫는 태그도 대문자 |
+
+`value`·`onChange`·`onKeyDown`·`placeholder`·`submit` 함수는 **한 글자도 바뀌지 않습니다.** shadcn `Input`의 타입이 `React.ComponentProps<"input">` — 즉 **순수 `<input>`과 props가 완전히 동일**하기 때문입니다. 한글 IME 처리(`e.nativeEvent.isComposing`)도 그대로 살아 있습니다. 💡 shadcn의 `Input`도 결국 일반 input이라 그 처리가 여전히 필요해요.
+
+**왜 `className`을 지우나** — `Input`/`Button` 파일 안에 스타일이 이미 박혀 있습니다. `Input`은 `h-8 rounded-lg border border-input …`, `Button`은 `h-8 bg-primary text-primary-foreground hover:bg-primary/80 …`. `border rounded px-3 py-2`를 남기면 **중복 지정**이 됩니다. 덤으로 hover 효과·포커스 링·다크모드 대응이 공짜로 붙습니다.
+
+**그럼 왜 `flex-1`은 남기나** — shadcn 컴포넌트는 내부에서 `cn()`(= `tailwind-merge`)으로 클래스를 합치기 때문에 **내가 넘긴 className이 이깁니다.** 그래서 원칙은 이렇습니다.
+
+> **"배치·구조"(`flex-1`, `mt-2`)는 내가 지정하고, "외형"(테두리·색·높이)은 컴포넌트에 맡긴다.**
+
+**왜 `"use client"`가 없나** — 4-2-1의 규칙 그대로입니다. `ChatPanel`이 검문소이고 `ChatInput`은 그 안쪽이라 자동 전파됩니다.
+
+🎯 **증거**: 방금 생성된 `src/components/ui/button.tsx`와 `input.tsx`를 열어보면 **둘 다 `"use client"`가 없습니다.** shadcn이 만든 컴포넌트인데도요. `ChatPanel → ChatInput → Button` 사슬 전체가 이미 클라이언트 영역이라 필요가 없는 겁니다. "파일 맨 위에 뭐가 적혀 있느냐가 아니라 **누가 import했느냐**가 실행 위치를 결정한다"는 4-2-1의 규칙이 실제 라이브러리 코드에서 확인되는 지점이에요.
+
+#### 4-3-4. ⌨️ 동작 확인
+
+```bash
+cd chat-app
+pnpm dev        # 이미 돌고 있으면 그대로 (저장 시 자동 반영)
+```
+
+`http://localhost:3000`에서 **4가지**:
+
+- [ ] **① 모양이 바뀌었다** — 입력창 테두리가 둥글어지고, 버튼이 검정 배경 + 흰 글씨
+- [ ] **② 높이가 딱 맞는다** — 입력창과 버튼이 둘 다 `h-8`(32px)이라 자동 정렬
+- [ ] **③ 한글이 두 번 안 들어간다** — "안녕" + Enter → `안녕`만 전송 (`안녕녕` 아님)
+- [ ] **④ hover 효과** — 버튼에 마우스를 올리면 살짝 흐려짐(`hover:bg-primary/80`). Day 4엔 없던 것
+
+**증상별 진단표**
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| `Module not found: Can't resolve '@/components/ui/button'` | `add` 명령을 안 돌렸거나 `@/`가 `src/`를 못 가리킴 | `pnpm dlx shadcn@latest add button input` / `tsconfig.json`의 `"@/*": ["./src/*"]` 확인 |
+| `error TS1005: '(' expected` | 파일을 **일부만** 고쳐서 문법이 깨진 상태 | 4-3-2의 완성본으로 **파일 전체** 교체 |
+| 화면에 `//` 같은 글자가 그대로 보인다 | children 위치에 `//` 주석을 씀 | `{/* … */}`로 감싸기 (4-3-2의 ⚠️ 참고) |
+| 모양이 안 바뀐다 | `<input>`/`<button>` 소문자 그대로 | 대문자 `<Input>`/`<Button>`인지 확인 |
+| 버튼 색이 안 나온다 | `globals.css`의 테마 변수 누락 | `init`을 안 돌렸거나 `globals.css`를 되돌린 경우 — 4-3-1 재실행 |
 
 ---
 
